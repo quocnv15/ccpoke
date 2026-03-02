@@ -3,6 +3,8 @@ import { homedir } from "node:os";
 import { dirname, join } from "node:path";
 import { fileURLToPath } from "node:url";
 
+import { isWindows } from "./constants.js";
+
 const MODULE_DIR = dirname(fileURLToPath(import.meta.url));
 const PROJECT_ROOT = join(MODULE_DIR, "..", "..");
 
@@ -28,7 +30,7 @@ export const paths = {
   claudeCodeHookScript: join(
     CCPOKE_HOME,
     "hooks",
-    process.platform === "win32" ? "claude-code-stop.cmd" : "claude-code-stop.sh"
+    isWindows() ? "claude-code-stop.cmd" : "claude-code-stop.sh"
   ),
   claudeCodeSessionStartScript: join(CCPOKE_HOME, "hooks", "claude-code-session-start.sh"),
   claudeCodeNotificationScript: join(CCPOKE_HOME, "hooks", "claude-code-notification.sh"),
@@ -38,11 +40,7 @@ export const paths = {
     "hooks",
     "claude-code-permission-request.sh"
   ),
-  cursorHookScript: join(
-    CCPOKE_HOME,
-    "hooks",
-    process.platform === "win32" ? "cursor-stop.cmd" : "cursor-stop.sh"
-  ),
+  cursorHookScript: join(CCPOKE_HOME, "hooks", isWindows() ? "cursor-stop.cmd" : "cursor-stop.sh"),
 
   claudeDir: CLAUDE_HOME,
   claudeSettings: join(CLAUDE_HOME, "settings.json"),
@@ -55,11 +53,7 @@ export const paths = {
   codexDir: CODEX_HOME,
   codexConfigToml: join(CODEX_HOME, "config.toml"),
   codexSessionsDir: join(CODEX_HOME, "sessions"),
-  codexHookScript: join(
-    CCPOKE_HOME,
-    "hooks",
-    process.platform === "win32" ? "codex-notify.cmd" : "codex-notify.sh"
-  ),
+  codexHookScript: join(CCPOKE_HOME, "hooks", isWindows() ? "codex-notify.cmd" : "codex-notify.sh"),
 } as const;
 
 export function getPackageVersion(): string {

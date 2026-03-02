@@ -48,3 +48,25 @@ export const ApiRoute = {
 
 export const DEFAULT_HOOK_PORT = 9377;
 export const MINI_APP_BASE_URL = "https://kaida-palooza.github.io/ccpoke";
+
+export const Platform = {
+  Windows: "win32",
+  MacOS: "darwin",
+  Linux: "linux",
+} as const;
+
+export type Platform = (typeof Platform)[keyof typeof Platform];
+
+export const currentPlatform = process.platform;
+
+export function isWindows(): boolean {
+  return currentPlatform === Platform.Windows;
+}
+
+export function isMacOS(): boolean {
+  return currentPlatform === Platform.MacOS;
+}
+
+export function isLinux(): boolean {
+  return currentPlatform === Platform.Linux;
+}
