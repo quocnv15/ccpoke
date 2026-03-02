@@ -72,11 +72,17 @@ function splitMessage(text: string, maxLen: number): string[] {
 }
 
 function findSplitPoint(text: string, maxLen: number): number {
-  for (let i = maxLen; i > maxLen - SPLIT_LOOKBACK_RANGE && i > 0; i--) {
+  const searchStart = Math.max(0, maxLen - SPLIT_LOOKBACK_RANGE);
+
+  for (let i = maxLen; i > searchStart; i--) {
+    if (text[i] === "\n" && text[i - 1] === "\n") return i + 1;
+  }
+
+  for (let i = maxLen; i > searchStart; i--) {
     if (text[i] === "\n" && text[i - 1] !== "\\") return i + 1;
   }
 
-  for (let i = maxLen; i > maxLen - SPLIT_LOOKBACK_RANGE && i > 0; i--) {
+  for (let i = maxLen; i > searchStart; i--) {
     if (text[i] === " " && text[i - 1] !== "\\") return i + 1;
   }
 
