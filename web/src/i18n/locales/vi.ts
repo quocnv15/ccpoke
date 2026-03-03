@@ -6,7 +6,7 @@ export const vi: LocaleDict = {
 
   heroTitle: "Code mọi nơi, ",
   heroAccent: "mọi lúc",
-  heroSub: "Tương tác 2 chiều với Claude Code, Codex CLI, Cursor CLI và nhiều AI agents khác qua Telegram, Discord, Zalo. Cầm điện thoại mà vẫn code.",
+  heroSub: "Tương tác 2 chiều với các AI coding agents qua Telegram, Discord, Zalo. Cầm điện thoại mà vẫn code.",
   heroCta: "Bắt đầu ngay",
 
   navHow: "Cách hoạt động",

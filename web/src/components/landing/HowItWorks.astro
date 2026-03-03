@@ -11,7 +11,7 @@ const { locale } = Astro.props;
 const leftNodes = [
   { name: "Claude Code", icon: icons.brandClaude, active: true },
   { name: "Cursor CLI", icon: icons.brandCursor, active: true },
-  { name: "Gemini CLI", icon: icons.brandGemini, active: false },
+  { name: "Gemini CLI", icon: icons.brandGemini, active: true },
   { name: "Antigravity", icon: icons.brandGoogle, active: false },
   { name: "Codex CLI", icon: icons.brandOpenai, active: true },
   { name: "Copilot", icon: icons.brandCopilot, active: false },
@@ -27,15 +27,15 @@ const rightNodes = [
 
 <section class="sect-section py-14 reveal" id="how">
   <div class="mb-12">
-    <p class="text-[0.72rem] font-bold uppercase tracking-[0.14em] text-accent mb-2">{ts(locale, "howLabel")}</p>
-    <h2 class="text-[clamp(1.5rem,3vw,2rem)] font-bold tracking-tight mb-2">{ts(locale, "howTitle")}</h2>
-    <p class="text-[0.95rem] text-txt-2 max-w-[460px]">{ts(locale, "howSub")}</p>
+    <p class="text-[0.72rem] font-bold uppercase tracking-[0.14em] text-accent mb-2 reveal-item">{ts(locale, "howLabel")}</p>
+    <h2 class="text-[clamp(1.5rem,3vw,2rem)] font-bold tracking-tight mb-2 reveal-item" style="transition-delay: 0.06s">{ts(locale, "howTitle")}</h2>
+    <p class="text-[0.95rem] text-txt-2 max-w-[460px] reveal-item" style="transition-delay: 0.12s">{ts(locale, "howSub")}</p>
   </div>
 
   <div class="flow-diagram" id="flow-diagram">
     <div class="flow-nodes flow-nodes--left">
-      {leftNodes.map((node) => (
-        <div class={`flow-node flow-node--${node.active ? "active" : "inactive"}`} data-flow-node="left" data-flow-active={node.active ? "true" : "false"}>
+      {leftNodes.map((node, idx) => (
+        <div class={`flow-node flow-node--${node.active ? "active" : "inactive"} reveal-left`} data-flow-node="left" data-flow-active={node.active ? "true" : "false"} style={`transition-delay: ${idx * 0.08}s`}>
           <span class="flow-node__icon" set:html={node.icon} />
           <span>{node.name}</span>
           {!node.active && <span class="flow-node__soon">{ts(locale, "howSoon")}</span>}
@@ -53,15 +53,15 @@ const rightNodes = [
         </defs>
       </svg>
 
-      <div class="flow-hub" id="flow-hub">
+      <div class="flow-hub reveal-scale" id="flow-hub" style="transition-delay: 0.3s">
         <span class="flow-hub__logo text-accent" set:html={icons.logoOutline} />
         <span class="flow-hub__label">ccpoke</span>
       </div>
     </div>
 
     <div class="flow-nodes flow-nodes--right">
-      {rightNodes.map((node) => (
-        <div class={`flow-node flow-node--${node.active ? "active" : "inactive"}`} data-flow-node="right" data-flow-active={node.active ? "true" : "false"}>
+      {rightNodes.map((node, idx) => (
+        <div class={`flow-node flow-node--${node.active ? "active" : "inactive"} reveal-right`} data-flow-node="right" data-flow-active={node.active ? "true" : "false"} style={`transition-delay: ${0.35 + idx * 0.08}s`}>
           <span class="flow-node__icon" set:html={node.icon} />
           <span>{node.name}</span>
           {!node.active && <span class="flow-node__soon">{ts(locale, "howSoon")}</span>}
@@ -104,6 +104,18 @@ function drawFlowPaths() {
     path.setAttribute("d", d);
     path.setAttribute("class", `flow-path flow-path--${isActive ? "active" : "inactive"}`);
     svg!.appendChild(path);
+    return path;
+  }
+
+  function setupNodeHover(node: Element, pathEl: SVGPathElement) {
+    node.addEventListener("mouseenter", () => {
+      pathEl.classList.add("flow-path--highlight");
+      node.classList.add("flow-node--highlight");
+    });
+    node.addEventListener("mouseleave", () => {
+      pathEl.classList.remove("flow-path--highlight");
+      node.classList.remove("flow-node--highlight");
+    });
   }
 
   function createFlowDot(d: string, delay: number, reverse: boolean) {
@@ -155,9 +167,10 @@ function drawFlowPaths() {
     const startY = nodeRect.top + nodeRect.height / 2 - svgRect.top;
     const d = buildCurvePath(startX, startY, hubLeftX, hubCenterY);
     const isActive = node.getAttribute("data-flow-active") === "true";
-    createBasePath(d, isActive);
+    const pathEl = createBasePath(d, isActive);
 
     if (isActive) {
+      setupNodeHover(node, pathEl);
       const reverse = activeIndex % 2 !== 0;
       createFlowDot(d, activeIndex * 1.5, reverse);
       activeIndex++;
@@ -170,9 +183,10 @@ function drawFlowPaths() {
     const endY = nodeRect.top + nodeRect.height / 2 - svgRect.top;
     const d = buildCurvePath(hubRightX, hubCenterY, endX, endY);
     const isActive = node.getAttribute("data-flow-active") === "true";
-    createBasePath(d, isActive);
+    const pathEl = createBasePath(d, isActive);
 
     if (isActive) {
+      setupNodeHover(node, pathEl);
       const reverse = activeIndex % 2 !== 0;
       createFlowDot(d, activeIndex * 1.5, reverse);
       activeIndex++;

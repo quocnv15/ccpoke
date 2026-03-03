@@ -10,14 +10,14 @@ const { locale } = Astro.props;
 ---
 
 <section class="cta-bottom mt-8 reveal">
-  <h2 class="cta-bottom__heading">{ts(locale, "ctaTitle")}</h2>
-  <p>{ts(locale, "ctaSub")}</p>
-  <div class="cta-bottom__badges">
+  <h2 class="cta-bottom__heading reveal-item">{ts(locale, "ctaTitle")}</h2>
+  <p class="reveal-item" style="transition-delay: 0.06s">{ts(locale, "ctaSub")}</p>
+  <div class="cta-bottom__badges reveal-item" style="transition-delay: 0.12s">
     <img src="https://img.shields.io/github/stars/kaida-palooza/ccpoke?style=flat&logo=github&label=stars&color=D97757" alt="GitHub Stars" loading="lazy" />
     <img src="https://img.shields.io/npm/dw/ccpoke?style=flat&logo=npm&label=downloads&color=D97757" alt="npm weekly downloads" loading="lazy" />
     <img src="https://img.shields.io/github/license/kaida-palooza/ccpoke?style=flat&color=D97757" alt="License" loading="lazy" />
   </div>
-  <div class="cta-actions">
+  <div class="cta-actions reveal-item" style="transition-delay: 0.18s">
     <a href="https://github.com/kaida-palooza/ccpoke" target="_blank" rel="noopener" class="cta-gh">
       <span class="w-4 h-4 inline-flex" set:html={icons.github16} />
       <span>{ts(locale, "ctaGithub")}</span>

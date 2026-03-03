@@ -10,13 +10,13 @@ const { locale } = Astro.props;
 
 <section class="sect-section py-14 reveal" id="setup">
   <div class="mb-12">
-    <p class="text-[0.72rem] font-bold uppercase tracking-[0.14em] text-accent mb-2">{ts(locale, "setupLabel")}</p>
-    <h2 class="text-[clamp(1.5rem,3vw,2rem)] font-bold tracking-tight mb-2">{ts(locale, "setupTitle")}</h2>
-    <p class="text-[0.95rem] text-txt-2 max-w-[460px]">{ts(locale, "setupSub")}</p>
+    <p class="text-[0.72rem] font-bold uppercase tracking-[0.14em] text-accent mb-2 reveal-item">{ts(locale, "setupLabel")}</p>
+    <h2 class="text-[clamp(1.5rem,3vw,2rem)] font-bold tracking-tight mb-2 reveal-item" style="transition-delay: 0.06s">{ts(locale, "setupTitle")}</h2>
+    <p class="text-[0.95rem] text-txt-2 max-w-[460px] reveal-item" style="transition-delay: 0.12s">{ts(locale, "setupSub")}</p>
   </div>
 
   <div class="flex flex-col gap-8">
-    <div class="grid grid-cols-[32px_1fr] gap-4">
+    <div class="grid grid-cols-[32px_1fr] gap-4 reveal-item" style="transition-delay: 0.1s">
       <div class="w-8 h-8 rounded-full bg-txt text-bg flex items-center justify-center text-[0.8rem] font-bold shrink-0">1</div>
       <div class="min-w-0">
         <h3 class="text-base font-bold mb-1.5">{ts(locale, "setupStep1Title")}</h3>
@@ -24,7 +24,7 @@ const { locale } = Astro.props;
       </div>
     </div>
 
-    <div class="grid grid-cols-[32px_1fr] gap-4">
+    <div class="grid grid-cols-[32px_1fr] gap-4 reveal-item" style="transition-delay: 0.2s">
       <div class="w-8 h-8 rounded-full bg-txt text-bg flex items-center justify-center text-[0.8rem] font-bold shrink-0">2</div>
       <div class="min-w-0">
         <h3 class="text-base font-bold mb-1.5">{ts(locale, "setupStep2Title")}</h3>
@@ -69,7 +69,7 @@ ccpoke: telegram bot started</span></pre>
       </div>
     </div>
 
-    <div class="grid grid-cols-[32px_1fr] gap-4">
+    <div class="grid grid-cols-[32px_1fr] gap-4 reveal-item" style="transition-delay: 0.3s">
       <div class="w-8 h-8 rounded-full bg-txt text-bg flex items-center justify-center text-[0.8rem] font-bold shrink-0">3</div>
       <div class="min-w-0">
         <h3 class="text-base font-bold mb-1.5">{ts(locale, "setupStep3Title")}</h3>

@@ -4,7 +4,7 @@ const en = {
 
   heroTitle: "Code anywhere, ",
   heroAccent: "anytime",
-  heroSub: "Two-way interaction with Claude Code, Codex CLI, Cursor CLI and more via Telegram, Discord, Zalo. Code on the go with your phone.",
+  heroSub: "Two-way interaction with AI coding agents via Telegram, Discord, Zalo. Code on the go with your phone.",
   heroCta: "Get Started",
 
   navHow: "How it works",

@@ -85,6 +85,81 @@ a:hover { color: var(--color-accent-hover) }
   transform: translateY(0);
 }
 
+.reveal .reveal-item {
+  opacity: 0;
+  transform: translateY(16px);
+  transition: opacity 0.5s ease, transform 0.5s ease;
+}
+.reveal.revealed .reveal-item {
+  opacity: 1;
+  transform: translateY(0);
+}
+
+.reveal .reveal-left {
+  transform: translateX(-20px);
+  transition: transform 0.5s ease;
+}
+.reveal .reveal-right {
+  transform: translateX(20px);
+  transition: transform 0.5s ease;
+}
+.reveal .reveal-scale {
+  transform: scale(0.92);
+  transition: transform 0.5s ease;
+}
+.reveal.revealed .reveal-left,
+.reveal.revealed .reveal-right,
+.reveal.revealed .reveal-scale {
+  transform: none;
+}
+
+.terminal-cursor {
+  color: var(--color-accent);
+  animation: cursor-blink 0.8s step-end infinite;
+}
+@keyframes cursor-blink {
+  50% { opacity: 0; }
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .terminal-cursor { animation: none; }
+  .reveal .reveal-item,
+  .reveal .reveal-left,
+  .reveal .reveal-right,
+  .reveal .reveal-scale { transition: none; }
+}
+
+.feat-card {
+  transition: transform 0.2s ease-out;
+}
+.feat-card:hover {
+  transform: translateY(-1px);
+}
+
+.reveal .reveal-scale-in {
+  transform: scale(0.8);
+  opacity: 0;
+  transition: transform 0.45s cubic-bezier(0.34, 1.56, 0.64, 1), opacity 0.4s ease;
+}
+.reveal.revealed .reveal-scale-in {
+  transform: scale(1);
+  opacity: 1;
+}
+
+.roadmap-tag {
+  transition: filter 0.15s ease, transform 0.15s ease;
+}
+.roadmap-tag:hover {
+  filter: brightness(0.92);
+  transform: translateY(-1px);
+}
+[data-theme="dark"] .roadmap-tag:hover {
+  filter: brightness(1.2);
+}
+
+nav.scrolled { box-shadow: 0 1px 8px rgba(0,0,0,0.06) }
+[data-theme="dark"] nav.scrolled { box-shadow: 0 1px 8px rgba(0,0,0,0.25) }
+
 .flow-diagram {
   display: grid;
   grid-template-columns: auto 1fr auto;
@@ -133,6 +208,12 @@ a:hover { color: var(--color-accent-hover) }
 .flow-node--active {
   color: var(--color-txt);
   border: 1px solid rgba(217, 119, 87, 0.2);
+  transition: box-shadow 0.2s ease, border-color 0.2s ease;
+}
+
+.flow-node--highlight {
+  box-shadow: 0 0 14px rgba(217, 119, 87, 0.3);
+  border-color: rgba(217, 119, 87, 0.5) !important;
 }
 
 .flow-node--inactive {
@@ -147,9 +228,6 @@ a:hover { color: var(--color-accent-hover) }
   text-transform: uppercase;
   letter-spacing: 0.06em;
   color: var(--color-accent);
-  background: rgba(217, 119, 87, 0.1);
-  padding: 1px 5px;
-  border-radius: 3px;
   line-height: 1;
 }
 
@@ -212,7 +290,8 @@ a:hover { color: var(--color-accent-hover) }
   stroke-linecap: round;
 }
 
-.flow-path--active { stroke: rgba(217, 119, 87, 0.15); }
+.flow-path--active { stroke: rgba(217, 119, 87, 0.15); transition: stroke 0.2s ease; }
+.flow-path--highlight { stroke: rgba(217, 119, 87, 0.45); }
 
 .flow-path--inactive {
   stroke: rgba(0, 0, 0, 0.08);
@@ -234,7 +313,7 @@ a:hover { color: var(--color-accent-hover) }
   bottom: 0.25rem;
   width: 3px;
   border-radius: 2px;
-  background: linear-gradient(to bottom, var(--color-emerald) 0%, var(--color-emerald) 66%, var(--color-accent) 66%, var(--color-accent) 83%, var(--color-border) 83%, var(--color-border) 100%);
+  background: linear-gradient(to bottom, var(--color-emerald) 0%, var(--color-emerald) 64%, var(--color-accent) 69%, var(--color-accent) 81%, var(--color-border) 86%, var(--color-border) 100%);
 }
 
 .tl-dot {
@@ -248,7 +327,11 @@ a:hover { color: var(--color-accent-hover) }
   z-index: 2;
 }
 .tl-dot.done { background: var(--color-emerald); box-shadow: 0 0 0 4px var(--color-emerald-light) }
-.tl-dot.wip { background: var(--color-accent); box-shadow: 0 0 0 4px var(--color-accent-light) }
+.tl-dot.wip { background: var(--color-accent); box-shadow: 0 0 0 4px var(--color-accent-light); animation: wip-pulse 2s ease-in-out infinite }
+@keyframes wip-pulse {
+  0%, 100% { transform: scale(1); box-shadow: 0 0 0 4px var(--color-accent-light); }
+  50% { transform: scale(1.25); box-shadow: 0 0 0 5px var(--color-accent-light), 0 0 16px rgba(217,119,87,0.35); }
+}
 .tl-dot.soon { background: var(--color-border); box-shadow: 0 0 0 4px var(--color-feat-icon) }
 
 .step-term .d { color: var(--color-accent); user-select: none }
@@ -1743,4 +1826,5 @@ a:hover { color: var(--color-accent-hover) }
   .rv-loading__bar, .rv-skel { animation: none; }
   .flow-path-pulse { animation: none; stroke-dasharray: none; }
   .reveal { opacity: 1; transform: none; transition: none; }
+  .reveal .reveal-scale-in { transform: none; opacity: 1; transition: none; }
 }

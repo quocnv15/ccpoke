@@ -108,5 +108,10 @@ function localePageHref(loc: Locale, path: string): string {
     });
   });
 
-
+  const navEl = document.querySelector('nav');
+  if (navEl) {
+    const onScroll = () => navEl.classList.toggle('scrolled', window.scrollY > 10);
+    onScroll();
+    window.addEventListener('scroll', onScroll, { passive: true });
+  }
 </script>

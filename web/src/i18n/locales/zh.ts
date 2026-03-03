@@ -6,7 +6,7 @@ export const zh: LocaleDict = {
 
   heroTitle: "随时随地，",
   heroAccent: "编程",
-  heroSub: "通过 Telegram、Discord、Zalo 与 Claude Code、Codex CLI、Cursor CLI 等 AI 代理双向交互。手机在手，代码在心。",
+  heroSub: "通过 Telegram、Discord、Zalo 与 AI 编程代理双向交互。手机在手，代码在心。",
   heroCta: "开始使用",
 
   navHow: "工作原理",
