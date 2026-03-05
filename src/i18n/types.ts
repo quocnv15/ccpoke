@@ -146,6 +146,7 @@ export interface TranslationKeys {
     cmdUninstall: string;
     cmdHelp: string;
     cmdProject: string;
+    cmdChannel: string;
     docs: string;
   };
   hook: {
@@ -289,5 +290,15 @@ export interface TranslationKeys {
     confirmRemove: string;
     removed: string;
     exit: string;
+  };
+  channelCmd: {
+    intro: string;
+    currentChannel: string;
+    selectChannel: string;
+    switched: string;
+    unchanged: string;
+    cancelled: string;
+    notConfigured: string;
+    configureNow: string;
   };
 }

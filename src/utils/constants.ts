@@ -20,6 +20,7 @@ export const CliCommand = {
   Update: "update",
   Uninstall: "uninstall",
   Project: "project",
+  Channel: "channel",
   Help: "help",
   HelpFlag: "--help",
   HelpShort: "-h",

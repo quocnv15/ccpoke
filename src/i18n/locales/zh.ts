@@ -155,6 +155,7 @@ export const zh: TranslationKeys = {
     cmdUninstall: "  uninstall   删除所有 ccpoke 数据和钩子",
     cmdHelp: "  help        显示此帮助信息",
     cmdProject: "  project     管理已注册项目",
+    cmdChannel: "  channel     切换通知渠道 (telegram/discord/slack)",
     docs: "文档 → https://github.com/kaida-palooza/ccpoke",
   },
 
@@ -302,5 +303,15 @@ export const zh: TranslationKeys = {
     confirmRemove: '删除 "{name}"？',
     removed: '已删除 "{name}"',
     exit: "退出",
+  },
+  channelCmd: {
+    intro: "📡 切换通知渠道",
+    currentChannel: "当前渠道: {channel}",
+    selectChannel: "切换到",
+    switched: '已切换到 "{channel}"。重启 ccpoke 以生效。',
+    unchanged: "渠道未更改",
+    cancelled: "已取消。",
+    notConfigured: '"{channel}" 尚未配置。',
+    configureNow: "现在配置 {channel}？",
   },
 };

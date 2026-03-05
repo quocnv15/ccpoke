@@ -7,6 +7,7 @@ import { DiscordChannel } from "./channel/discord/discord-channel.js";
 import { SlackChannel } from "./channel/slack/slack-channel.js";
 import { TelegramChannel } from "./channel/telegram/telegram-channel.js";
 import type { ChannelDeps, NotificationChannel } from "./channel/types.js";
+import { runChannel } from "./commands/channel.js";
 import { runHelp } from "./commands/help.js";
 import { runProject } from "./commands/project.js";
 import { runSetup } from "./commands/setup.js";
@@ -239,6 +240,13 @@ function handleSubcommand(args: string[]): void {
 
     case CliCommand.Project:
       runProject().catch((err: unknown) => {
+        logError(t("common.setupFailed"), err);
+        process.exit(1);
+      });
+      break;
+
+    case CliCommand.Channel:
+      runChannel().catch((err: unknown) => {
         logError(t("common.setupFailed"), err);
         process.exit(1);
       });

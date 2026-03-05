@@ -157,6 +157,7 @@ export const en: TranslationKeys = {
     cmdUninstall: "  uninstall   Remove all ccpoke data and hooks",
     cmdHelp: "  help        Show this help message",
     cmdProject: "  project     Manage registered projects",
+    cmdChannel: "  channel     Switch notification channel (telegram/discord/slack)",
     docs: "docs → https://github.com/kaida-palooza/ccpoke",
   },
 
@@ -304,5 +305,15 @@ export const en: TranslationKeys = {
     confirmRemove: 'Remove "{name}"?',
     removed: 'Removed "{name}"',
     exit: "Exit",
+  },
+  channelCmd: {
+    intro: "📡 Channel Switcher",
+    currentChannel: "Current channel: {channel}",
+    selectChannel: "Switch to",
+    switched: 'Switched to "{channel}". Restart ccpoke to apply.',
+    unchanged: "Channel unchanged",
+    cancelled: "Cancelled.",
+    notConfigured: '"{channel}" is not configured yet.',
+    configureNow: "Configure {channel} now?",
   },
 };

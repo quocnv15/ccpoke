@@ -157,6 +157,7 @@ export const vi: TranslationKeys = {
     cmdUninstall: "  uninstall   Xóa toàn bộ dữ liệu và hooks ccpoke",
     cmdHelp: "  help        Hiện hướng dẫn này",
     cmdProject: "  project     Quản lý project đã đăng ký",
+    cmdChannel: "  channel     Chuyển kênh thông báo (telegram/discord/slack)",
     docs: "docs → https://github.com/kaida-palooza/ccpoke",
   },
 
@@ -304,5 +305,15 @@ export const vi: TranslationKeys = {
     confirmRemove: 'Xóa "{name}"?',
     removed: 'Đã xóa "{name}"',
     exit: "Thoát",
+  },
+  channelCmd: {
+    intro: "📡 Chuyển kênh thông báo",
+    currentChannel: "Kênh hiện tại: {channel}",
+    selectChannel: "Chuyển sang",
+    switched: 'Đã chuyển sang "{channel}". Khởi động lại ccpoke để áp dụng.',
+    unchanged: "Kênh không thay đổi",
+    cancelled: "Đã hủy.",
+    notConfigured: '"{channel}" chưa được cấu hình.',
+    configureNow: "Cấu hình {channel} ngay?",
   },
 };

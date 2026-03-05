@@ -123,7 +123,7 @@ async function promptLanguage(existing: Config | null): Promise<Locale> {
   return result;
 }
 
-async function promptToken(existing: Config | null): Promise<string> {
+export async function promptToken(existing: Config | null): Promise<string> {
   const result = await p.text({
     message: t("setup.tokenMessage"),
     placeholder: t("setup.tokenPlaceholder"),
@@ -142,7 +142,7 @@ async function promptToken(existing: Config | null): Promise<string> {
   return result.trim();
 }
 
-async function verifyToken(token: string): Promise<string> {
+export async function verifyToken(token: string): Promise<string> {
   const spinner = p.spinner();
   spinner.start(t("setup.verifyingToken"));
 
@@ -158,7 +158,7 @@ async function verifyToken(token: string): Promise<string> {
   }
 }
 
-async function waitForUserStart(token: string, botUsername: string): Promise<number> {
+export async function waitForUserStart(token: string, botUsername: string): Promise<number> {
   const deepLink = `https://t.me/${botUsername}?start=setup`;
 
   p.log.step(t("setup.scanOrClick"));
@@ -324,7 +324,10 @@ function registerChatId(userId: number): void {
   p.log.success(t("setup.chatIdRegistered"));
 }
 
-async function promptDiscordCredentials(config: Config, existing: Config | null): Promise<void> {
+export async function promptDiscordCredentials(
+  config: Config,
+  existing: Config | null
+): Promise<void> {
   const botToken = await p.text({
     message: t("setup.discordTokenMessage"),
     placeholder: t("setup.discordTokenPlaceholder"),
@@ -459,7 +462,10 @@ async function waitForDiscordDM(token: string, botId: string): Promise<string> {
   }
 }
 
-async function promptSlackCredentials(config: Config, existing: Config | null): Promise<void> {
+export async function promptSlackCredentials(
+  config: Config,
+  existing: Config | null
+): Promise<void> {
   const botToken = await p.text({
     message: t("setup.slackTokenMessage"),
     placeholder: t("setup.slackTokenPlaceholder"),

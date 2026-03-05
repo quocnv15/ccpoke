@@ -16,6 +16,7 @@ export function runHelp(): void {
       t("help.cmdNone"),
       t("help.cmdSetup"),
       t("help.cmdProject"),
+      t("help.cmdChannel"),
       t("help.cmdUpdate"),
       t("help.cmdUninstall"),
       t("help.cmdHelp"),
