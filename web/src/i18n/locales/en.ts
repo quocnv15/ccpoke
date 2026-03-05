@@ -146,7 +146,7 @@ const en = {
   docsFaq1Q: "Do I need to keep the terminal open?",
   docsFaq1A: "Yes — ccpoke runs a local hook server that your AI agent connects to. Keep it running in a terminal or use a process manager like <code>pm2</code> or <code>tmux</code>.",
   docsFaq2Q: "Which AI agents are supported?",
-  docsFaq2A: "Currently: <strong>Claude Code</strong>, <strong>Codex CLI</strong>, and <strong>Cursor CLI</strong>. More agents coming via the provider pattern.",
+  docsFaq2A: "Currently: <strong>Claude Code</strong>, <strong>Codex CLI</strong>, <strong>Cursor CLI</strong>, and <strong>Gemini CLI</strong>. More agents coming via the provider pattern.",
   docsFaq3Q: "Is it free?",
   docsFaq3A: "Yes, completely free and open-source under the MIT license. Self-hosted — your data stays on your machine.",
   docsFaq4Q: "Can I use it on Windows?",
@@ -154,7 +154,13 @@ const en = {
   docsFaq5Q: "How do I update?",
   docsFaq5A: "Run <code>ccpoke update</code> or <code>npm i -g ccpoke@latest</code> to get the latest version.",
   docsFaq6Q: "How secure is it?",
-  docsFaq6A: "ccpoke runs locally on your machine. Communication goes through your own Telegram bot. No third-party servers involved — your code and prompts never leave your machine.",
+  docsFaq6A: "ccpoke runs locally on your machine. Communication goes through your own bot (Telegram, Discord, or Slack). No third-party servers involved — your code and prompts never leave your machine.",
+  docsFaq7Q: "How do I use it on a remote server?",
+  docsFaq7A: "Use a tunneling service like <code>ngrok</code> or <code>cloudflared</code> to expose your local hook server. Example: <code>ngrok http 9377</code>.",
+  docsFaq8Q: "How do I change the language?",
+  docsFaq8A: "Run <code>ccpoke setup</code> and select your preferred language, or edit <code>locale</code> in <code>~/.ccpoke/config.json</code>.",
+  docsFaq9Q: "How do I switch between Telegram, Discord, and Slack?",
+  docsFaq9A: "Run <code>ccpoke channel</code> to switch. If the target channel hasn't been configured yet, the wizard will guide you through setup.",
 
   docsCtaTitle: "Ready to try ccpoke?",
   docsCtaSub: "MIT licensed, open-source. Set up in 30 seconds.",
@@ -330,17 +336,6 @@ const en = {
 
   docsPaginationPrev: "Previous",
   docsPaginationNext: "Next",
-
-  docsFaq2Q: "Which AI agents are supported?",
-  docsFaq2A: "Currently: <strong>Claude Code</strong>, <strong>Codex CLI</strong>, <strong>Cursor CLI</strong>, and <strong>Gemini CLI</strong>. More agents coming via the provider pattern.",
-  docsFaq6Q: "How secure is it?",
-  docsFaq6A: "ccpoke runs locally on your machine. Communication goes through your own bot (Telegram, Discord, or Slack). No third-party servers involved — your code and prompts never leave your machine.",
-  docsFaq7Q: "How do I use it on a remote server?",
-  docsFaq7A: "Use a tunneling service like <code>ngrok</code> or <code>cloudflared</code> to expose your local hook server. Example: <code>ngrok http 9377</code>.",
-  docsFaq8Q: "How do I change the language?",
-  docsFaq8A: "Run <code>ccpoke setup</code> and select your preferred language, or edit <code>locale</code> in <code>~/.ccpoke/config.json</code>.",
-  docsFaq9Q: "How do I switch between Telegram, Discord, and Slack?",
-  docsFaq9A: "Run <code>ccpoke channel</code> to switch. If the target channel hasn't been configured yet, the wizard will guide you through setup.",
 } as const satisfies Record<string, string | string[]>;
 
 export type LocaleDict = { [K in keyof typeof en]: (typeof en)[K] extends string[] ? string[] : string } & Record<string, string | string[]>;
