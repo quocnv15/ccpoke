@@ -42,8 +42,8 @@ const en = {
 
   phase1Label: "Phase 1 · Complete",
   phase1Title: "Notification bridge",
-  phase1Desc: "Push notification when your AI agent completes — git diff, token/cost stats, and full response viewer via Telegram Mini App. Supports Claude Code and Cursor CLI on macOS, Linux, and Windows.",
-  phase1Tags: ["Claude Code","Codex CLI","Cursor CLI","macOS · Linux · Windows","Stop hook","Git diff","Token stats","Mini App viewer","i18n (EN/VI/ZH)","CLI (setup/update/uninstall)","QR code setup"],
+  phase1Desc: "Push notification when your AI agent completes — git diff and full response viewer via Telegram Mini App. Supports Claude Code and Cursor CLI on macOS, Linux, and Windows.",
+  phase1Tags: ["Claude Code","Codex CLI","Cursor CLI","macOS · Linux · Windows","Stop hook","Git diff","Mini App viewer","i18n (EN/VI/ZH)","CLI (setup/update/uninstall)","QR code setup"],
 
   phase2Label: "Phase 2 · Complete",
   phase2Title: "Two-way chat",
@@ -224,8 +224,8 @@ const en = {
 
   docsTgNotificationsTitle: "Notifications",
   docsTgNotificationsTrigger: "When an AI agent completes a task (stop hook fires)",
-  docsTgNotificationsDesc: "You receive a push notification with: project name, agent type & processing time, task summary, token stats (input/output), model name. Two buttons: \"View Details\" opens the Mini App with the full response, \"Chat\" lets you send a follow-up prompt.",
-  docsTgNotificationsDemo: "📦 my-app\n🐾 Claude Code · ⏱ 25s\n\nAdded dark mode toggle to settings page with system preference detection.\n\n📊 In: 104.4k · Out: 947\n\n🤖 Opus 4.6\n\n[View Details]  [Chat]",
+  docsTgNotificationsDesc: "You receive a push notification with: project name, agent type, task summary, model name. Two buttons: \"View Details\" opens the Mini App with the full response, \"Chat\" lets you send a follow-up prompt.",
+  docsTgNotificationsDemo: "📦 my-app\n🐾 Claude Code\n\nAdded dark mode toggle to settings page with system preference detection.\n\n🤖 Opus 4.6\n\n[View Details]  [Chat]",
 
   docsTgChatTitle: "Two-way Chat",
   docsTgChatTrigger: "Tap \"Chat\" on a notification or select a session from /sessions",
@@ -295,8 +295,8 @@ const en = {
   docsDiscordDesc: "Everything you can do on Discord after setting up ccpoke with the Discord channel.",
   docsDcNotificationsTitle: "Notifications",
   docsDcNotificationsTrigger: "When an AI agent completes a task (stop hook fires)",
-  docsDcNotificationsDesc: "You receive a DM notification with an embed: project name, agent type & processing time, task summary, token stats, model name. Buttons: \"View Details\" opens the full response, \"Chat\" opens a chat modal to send a follow-up prompt.",
-  docsDcNotificationsDemo: "📦 my-app\n🐾 Claude Code · ⏱ 25s\n\nAdded dark mode toggle to settings page.\n\n📊 In: 104.4k · Out: 947\n🤖 Opus 4.6\n\n[📖 View Details]  [💬 Chat]",
+  docsDcNotificationsDesc: "You receive a DM notification with an embed: project name, agent type, task summary, model name. Buttons: \"View Details\" opens the full response, \"Chat\" opens a chat modal to send a follow-up prompt.",
+  docsDcNotificationsDemo: "📦 my-app\n🐾 Claude Code\n\nAdded dark mode toggle to settings page.\n\n🤖 Opus 4.6\n\n[📖 View Details]  [💬 Chat]",
   docsDcChatTitle: "Two-way Chat",
   docsDcChatTrigger: "Tap \"Chat\" on a notification or use /sessions → select → Chat",
   docsDcChatDesc: "Tap the Chat button to open a modal. Type your prompt — ccpoke injects it into the agent via tmux send-keys. Reply to an elicitation message to answer open-ended questions.",
@@ -323,8 +323,8 @@ const en = {
   docsSlackDesc: "Slack channel support is notification-only. Two-way chat, permissions, and questions are not yet available.",
   docsSlkNotificationsTitle: "Notifications",
   docsSlkNotificationsTrigger: "When an AI agent completes a task (stop hook fires)",
-  docsSlkNotificationsDesc: "Notifications are posted to your configured Slack channel using Block Kit: project name, agent type, processing time, task summary, token stats, model name, and a link to the full response viewer.",
-  docsSlkNotificationsDemo: "📦 my-app — Claude Code\n⏱ 25s · 📊 In: 104.4k · Out: 947\n\nAdded dark mode toggle to settings page.\n\n🤖 Opus 4.6  [View Details]",
+  docsSlkNotificationsDesc: "Notifications are posted to your configured Slack channel using Block Kit: project name, agent type, task summary, model name, and a link to the full response viewer.",
+  docsSlkNotificationsDemo: "📦 my-app — Claude Code\n\nAdded dark mode toggle to settings page.\n\n🤖 Opus 4.6  [View Details]",
   docsSlkLimitationsTitle: "Current Limitations",
   docsSlkLimitationsDesc: "Slack integration currently supports push notifications only. Two-way chat, permission handling, and Q&A are planned for a future release.",
 

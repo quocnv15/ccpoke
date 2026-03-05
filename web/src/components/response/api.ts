@@ -23,7 +23,6 @@ export function parseQueryParams(): ResponseParams | null {
     id,
     api,
     project: params.get("p") ?? "",
-    duration: parseInt(params.get("d") ?? "0", 10),
   };
 }
 

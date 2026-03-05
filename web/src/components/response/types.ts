@@ -1,6 +1,5 @@
 export interface ResponseData {
   projectName?: string;
-  durationMs?: number;
   responseSummary?: string;
   gitChanges?: GitChange[];
   timestamp?: string;
@@ -21,5 +20,4 @@ export interface ResponseParams {
   id: string;
   api: string;
   project: string;
-  duration: number;
 }

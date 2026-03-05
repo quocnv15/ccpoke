@@ -11,7 +11,6 @@ export default function ResponseViewer({ locale: localeProp }: { locale?: Locale
   const locale = localeProp ?? getLocaleFromUrl(new URL(window.location.href));
   const [viewState, setViewState] = useState<ViewState>({ kind: "loading" });
   const [project, setProject] = useState("");
-  const [durationMs, setDurationMs] = useState(0);
   const [timestamp, setTimestamp] = useState<string | undefined>();
   const [model, setModel] = useState("");
 
@@ -37,7 +36,6 @@ export default function ResponseViewer({ locale: localeProp }: { locale?: Locale
     }
 
     setProject(params.project);
-    setDurationMs(params.duration);
 
     try {
       const result = await fetchResponse(params);
@@ -47,7 +45,6 @@ export default function ResponseViewer({ locale: localeProp }: { locale?: Locale
       }
 
       if (result.data.projectName) setProject(result.data.projectName);
-      if (result.data.durationMs) setDurationMs(result.data.durationMs);
       if (result.data.timestamp) setTimestamp(result.data.timestamp);
       if (result.data.model) setModel(result.data.model);
       setViewState(result);
@@ -59,7 +56,7 @@ export default function ResponseViewer({ locale: localeProp }: { locale?: Locale
   return (
     <div class="rv">
       <main class="rv__body">
-        <ResponseMeta project={project} durationMs={durationMs} timestamp={timestamp} model={model} locale={locale} />
+        <ResponseMeta project={project} timestamp={timestamp} model={model} locale={locale} />
         {viewState.kind === "loading" && <LoadingState />}
         {viewState.kind === "error" && <ErrorState message={viewState.message} />}
         {viewState.kind === "success" && (

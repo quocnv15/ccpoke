@@ -95,7 +95,6 @@ export default function ResponsePreview() {
       <main class="rv__body">
         <ResponseMeta
           project="claudecode-tele"
-          durationMs={6118809}
           timestamp="2026-02-21T12:44:19.009Z"
           model="claude-sonnet-4-10"
         />

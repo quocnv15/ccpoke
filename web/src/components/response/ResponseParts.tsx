@@ -1,7 +1,7 @@
 
 import { useState } from "preact/hooks";
 import { ts, type Locale } from "../../i18n";
-import { formatDuration, formatModelName } from "../../lib/format";
+import { formatModelName } from "../../lib/format";
 import { GIT_STATUS_STYLES } from "../../lib/constants";
 import chevronDown16 from "../../assets/icons/chevron-down-16.svg?raw";
 import alertCircle from "../../assets/icons/alert-circle.svg?raw";
@@ -9,23 +9,20 @@ import type { GitChange } from "./types";
 
 export function ResponseMeta({
   project,
-  durationMs,
   timestamp,
   model,
   locale,
 }: {
   project: string;
-  durationMs: number;
   timestamp?: string;
   model?: string;
   locale?: Locale;
 }) {
-  const hasAnyMeta = project || durationMs > 0 || timestamp || model;
+  const hasAnyMeta = project || timestamp || model;
   if (!hasAnyMeta) return null;
 
   const leftParts: string[] = [];
   if (project) leftParts.push(project);
-  if (durationMs > 0) leftParts.push(formatDuration(durationMs));
 
   let dateStr = "";
   if (timestamp) {
