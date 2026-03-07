@@ -71,54 +71,57 @@ export function isValidStopEvent(data: unknown): data is StopEvent {
 }
 
 export function parseTranscript(transcriptPath: string): TranscriptSummary {
+  const expandedPath = expandHome(transcriptPath);
+
+  let raw: string;
   try {
-    const expandedPath = expandHome(transcriptPath);
-    const raw = readFileSync(expandedPath, "utf-8");
-    const lines = raw.split("\n");
-
-    let lastAssistantText = "";
-    let summaryText = "";
-    let model = "";
-
-    for (const line of lines) {
-      if (!line.trim()) continue;
-
-      let entry: TranscriptEntry;
-      try {
-        entry = JSON.parse(line);
-      } catch {
-        continue;
-      }
-
-      if (entry.type === "summary" && entry.summary) {
-        summaryText = entry.summary;
-      }
-
-      const msg = entry.message;
-      if (msg?.role === "user") {
-        lastAssistantText = "";
-        model = "";
-      }
-
-      if (msg?.role === "assistant") {
-        const rawContent = msg.content ?? [];
-        const contentArray = Array.isArray(rawContent) ? rawContent : [];
-        const text = extractTextFromContent(contentArray);
-        if (text) lastAssistantText = text;
-
-        if (msg.model) model = msg.model;
-      }
-    }
-
-    const finalMessage = lastAssistantText || summaryText;
-
-    return {
-      lastAssistantMessage: finalMessage,
-      model,
-    };
+    raw = readFileSync(expandedPath, "utf-8");
   } catch {
     return { lastAssistantMessage: "", model: "" };
   }
+
+  const lines = raw.split("\n");
+
+  let lastAssistantText = "";
+  let summaryText = "";
+  let model = "";
+
+  for (const line of lines) {
+    if (!line.trim()) continue;
+
+    let entry: TranscriptEntry;
+    try {
+      entry = JSON.parse(line);
+    } catch {
+      continue;
+    }
+
+    if (entry.type === "summary" && entry.summary) {
+      summaryText = entry.summary;
+    }
+
+    const msg = entry.message;
+    if (msg?.role === "user") {
+      lastAssistantText = "";
+      model = "";
+    }
+
+    if (msg?.role === "assistant") {
+      const rawContent = msg.content ?? [];
+      const contentArray = Array.isArray(rawContent) ? rawContent : [];
+      const text = extractTextFromContent(contentArray);
+      if (text) lastAssistantText = text;
+
+      if (msg.model) model = msg.model;
+    }
+  }
+
+  const finalMessage = lastAssistantText || summaryText;
+
+  return {
+    lastAssistantMessage: finalMessage,
+    model,
+  };
 }
 
 function extractTextFromContent(parts: ContentPart[]): string {

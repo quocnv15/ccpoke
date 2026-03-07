@@ -70,13 +70,7 @@ export class AgentHandler {
       await new Promise((resolve) => setTimeout(resolve, provider.settleDelayMs));
     }
 
-    let result;
-    try {
-      result = provider.parseEvent(rawEvent);
-    } catch (error) {
-      logError("Failed to parse event", { error, agent: provider.name });
-      return;
-    }
+    const result = provider.parseEvent(rawEvent);
     logDebug(
       `[Stop:raw] agent=${agentName} agentSessionId=${result.agentSessionId ?? "NONE"} project=${result.projectName} tmuxTarget=${result.tmuxTarget ?? "NONE"} cwd=${result.cwd ?? "NONE"}`
     );
