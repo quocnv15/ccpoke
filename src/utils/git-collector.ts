@@ -10,6 +10,7 @@ export function collectGitChanges(cwd: string): GitChange[] {
     const diffOutput = execSync("git diff --name-status HEAD", {
       cwd,
       encoding: "utf-8",
+      stdio: "pipe",
       timeout: GIT_TIMEOUT_MS,
     });
     const changes = parseGitDiffOutput(diffOutput);
@@ -18,6 +19,7 @@ export function collectGitChanges(cwd: string): GitChange[] {
       const untrackedOutput = execSync("git ls-files --others --exclude-standard", {
         cwd,
         encoding: "utf-8",
+        stdio: "pipe",
         timeout: GIT_TIMEOUT_MS,
       });
       for (const file of untrackedOutput.trim().split("\n")) {
@@ -33,6 +35,7 @@ export function collectGitChanges(cwd: string): GitChange[] {
       const porcelainOutput = execSync("git status --porcelain", {
         cwd,
         encoding: "utf-8",
+        stdio: "pipe",
         timeout: GIT_TIMEOUT_MS,
       });
       return parsePorcelainOutput(porcelainOutput);
