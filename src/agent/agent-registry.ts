@@ -2,6 +2,7 @@ import { ClaudeCodeProvider } from "./claude-code/claude-code-provider.js";
 import { CodexProvider } from "./codex/codex-provider.js";
 import { CursorProvider } from "./cursor/cursor-provider.js";
 import { GeminiCliProvider } from "./gemini-cli/gemini-cli-provider.js";
+import { OpencodeProvider } from "./opencode/opencode-provider.js";
 import type { AgentProvider } from "./types.js";
 
 export class AgentRegistry {
@@ -30,5 +31,6 @@ export function createDefaultRegistry(): AgentRegistry {
   registry.register(new CursorProvider());
   registry.register(new CodexProvider());
   registry.register(new GeminiCliProvider());
+  registry.register(new OpencodeProvider());
   return registry;
 }

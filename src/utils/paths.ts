@@ -13,6 +13,7 @@ const CLAUDE_HOME = join(homedir(), ".claude");
 const CURSOR_HOME = join(homedir(), ".cursor");
 const CODEX_HOME = join(homedir(), ".codex");
 const GEMINI_HOME = join(homedir(), ".gemini");
+const OPENCODE_HOME = join(homedir(), ".config", "opencode");
 
 export const paths = {
   projectRoot: PROJECT_ROOT,
@@ -62,6 +63,10 @@ export const paths = {
   geminiSessionStartScript: join(CCPOKE_HOME, "hooks", "gemini-session-start.sh"),
   geminiNotificationScript: join(CCPOKE_HOME, "hooks", "gemini-notification.sh"),
   geminiPreToolUseScript: join(CCPOKE_HOME, "hooks", "gemini-pretooluse.sh"),
+
+  opencodeDir: OPENCODE_HOME,
+  opencodePluginsDir: join(OPENCODE_HOME, "plugins"),
+  opencodePluginFile: join(OPENCODE_HOME, "plugins", "ccpoke-notify.js"),
 } as const;
 
 export function getPackageVersion(): string {

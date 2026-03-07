@@ -9,6 +9,7 @@ const AGENT_START_COMMANDS: Record<string, string> = {
   [AgentName.Cursor]: "cursor agent --force",
   [AgentName.Codex]: "codex --full-auto",
   [AgentName.GeminiCli]: "gemini --yolo",
+  [AgentName.OpenCode]: "opencode",
 };
 
 export function launchAgent(
