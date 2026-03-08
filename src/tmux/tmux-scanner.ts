@@ -285,13 +285,11 @@ export function isAgentAliveInPane(target: string, tree?: ProcessTree): boolean 
 }
 
 export function isPaneAlive(target: string): boolean {
-  const sessionName = target.split(":")[0];
-  if (!sessionName) return false;
   try {
-    execSync(`${getTmuxBinary()} has-session -t ${escapeShellArg(sessionName)}`, {
-      stdio: "pipe",
-      timeout: 3000,
-    });
+    execSync(
+      `${getTmuxBinary()} display-message -t ${escapeShellArg(target)} -p ${escapeShellArg("#{pane_id}")}`,
+      { stdio: "pipe", timeout: 3000 }
+    );
     return true;
   } catch {
     return false;
