@@ -39,6 +39,7 @@ export class TelegramChannel implements NotificationChannel {
   private lastPollingActivity = Date.now();
   private startedAt = 0;
   private pendingReplyStore = new PendingReplyStore();
+  private pendingRenames = new Map<string, string>(); // key: "chatId:msgId" → sessionId
   private instanceId = randomUUID();
   private sessionMap: SessionMap | null;
   private stateManager: SessionStateManager | null;
@@ -287,6 +288,11 @@ export class TelegramChannel implements NotificationChannel {
           // fall through to chat: handler below
         }
 
+        if (query.data?.startsWith("session_rename:")) {
+          await this.handleSessionRenamePrompt(query);
+          return;
+        }
+
         if (query.data?.startsWith("session_close:")) {
           await this.handleSessionCloseConfirm(query);
           return;
@@ -400,6 +406,21 @@ export class TelegramChannel implements NotificationChannel {
       }
 
       const pending = this.pendingReplyStore.get(msg.chat.id, msg.reply_to_message.message_id);
+
+      // Handle rename reply
+      const renameKey = `${msg.chat.id}:${msg.reply_to_message.message_id}`;
+      const renameSessionId = this.pendingRenames.get(renameKey);
+      if (renameSessionId && msg.text && this.sessionMap) {
+        this.pendingRenames.delete(renameKey);
+        this.bot.deleteMessage(msg.chat.id, msg.reply_to_message.message_id).catch(() => {});
+        const newLabel = msg.text.trim();
+        this.sessionMap.updateLabel(renameSessionId, newLabel);
+        this.sessionMap.save();
+        logDebug(`[Rename] sessionId=${renameSessionId} newLabel=${newLabel}`);
+        await this.bot.sendMessage(msg.chat.id, `✅ Renamed to: ${newLabel}`);
+        return;
+      }
+
       if (!pending) {
         logDebug(
           `[TG:msg] dropped: no pending reply for chatId=${msg.chat.id} replyToMsgId=${msg.reply_to_message.message_id}`
@@ -645,12 +666,19 @@ export class TelegramChannel implements NotificationChannel {
     );
 
     await this.bot.answerCallbackQuery(query.id);
-    await this.bot.sendMessage(query.message.chat.id, `*${escapeMarkdownV2(session.project)}*`, {
+    const displayName = session.label || session.project;
+    await this.bot.sendMessage(query.message.chat.id, `*${escapeMarkdownV2(displayName)}*`, {
       parse_mode: "MarkdownV2",
       reply_markup: {
         inline_keyboard: [
           [
             { text: `💬 ${t("sessions.chatButton")}`, callback_data: `session_chat:${sessionId}` },
+            {
+              text: `✏️`,
+              callback_data: `session_rename:${sessionId}`,
+            },
+          ],
+          [
             {
               text: `🗑 ${t("sessions.closeButton")}`,
               callback_data: `session_close:${sessionId}`,
@@ -660,6 +688,34 @@ export class TelegramChannel implements NotificationChannel {
         ],
       },
     });
+  }
+
+  /** Prompt user to rename a session */
+  private async handleSessionRenamePrompt(query: TelegramBot.CallbackQuery): Promise<void> {
+    const sessionId = query.data!.slice(15);
+    if (!this.sessionMap || !query.message) {
+      await this.bot.answerCallbackQuery(query.id, { text: t("chat.sessionExpired") });
+      return;
+    }
+
+    const session = this.resolveSession(sessionId);
+    if (!session) {
+      await this.bot.answerCallbackQuery(query.id, { text: t("chat.sessionExpired") });
+      return;
+    }
+
+    await this.bot.answerCallbackQuery(query.id);
+    const displayName = session.label || session.project;
+    const sent = await this.bot.sendMessage(
+      query.message.chat.id,
+      `✏️ *${escapeMarkdownV2(displayName)}*\n${escapeMarkdownV2("Enter new name:")}`,
+      {
+        parse_mode: "MarkdownV2",
+        reply_markup: { force_reply: true, selective: true },
+      }
+    );
+
+    this.pendingRenames.set(`${sent.chat.id}:${sent.message_id}`, session.sessionId);
   }
   /** Send Escape to tmux pane to cancel running process */
   private async handleSessionDismiss(query: TelegramBot.CallbackQuery): Promise<void> {

@@ -1,5 +1,6 @@
 import TelegramBot from "node-telegram-bot-api";
 
+import { AgentName } from "../../agent/types.js";
 import { t } from "../../i18n/index.js";
 import { SessionState, type TmuxSession } from "../../tmux/session-map.js";
 import { escapeMarkdownV2 } from "./escape-markdown.js";
@@ -8,6 +9,13 @@ const STATE_EMOJI: Record<string, string> = {
   [SessionState.Idle]: "\u{1F7E2}",
   [SessionState.Busy]: "\u{1F7E1}",
   [SessionState.Unknown]: "\u26AA",
+};
+
+const AGENT_ICON: Record<string, string> = {
+  [AgentName.ClaudeCode]: "⚡",
+  [AgentName.GeminiCli]: "✦",
+  [AgentName.Cursor]: "💜",
+  [AgentName.Codex]: "🔷",
 };
 
 const MAX_KEYBOARD_ROWS = 50;
@@ -27,10 +35,14 @@ export function formatSessionList(sessions: TmuxSession[]): {
 
   for (const session of sorted.slice(0, MAX_KEYBOARD_ROWS)) {
     const emoji = STATE_EMOJI[session.state] ?? "\u26AA";
+    const agentIcon = AGENT_ICON[session.agent] ?? "";
     const model = shortenModel(session.model);
-    const label = fitLabel(session.project, model, MAX_LABEL_CHARS);
+    const displayName = session.label || session.project;
+    const label = fitLabel(displayName, model, MAX_LABEL_CHARS);
 
-    rows.push([{ text: `${emoji} ${label}`, callback_data: `session:${session.sessionId}` }]);
+    rows.push([
+      { text: `${emoji} ${agentIcon} ${label}`, callback_data: `session:${session.sessionId}` },
+    ]);
   }
 
   return {
