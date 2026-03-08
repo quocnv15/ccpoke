@@ -200,7 +200,6 @@ export class SessionMap {
 
     // Register new panes not yet tracked (dedup handled by register())
     for (const pane of panes) {
-      logDebug(`[Scan:pane] target=${pane.target} cwd=${pane.cwd} pid=${pane.panePid}`);
       const existing = [...this.sessions.values()].find((s) => s.tmuxTarget === pane.target);
       if (existing) {
         // Update project/cwd if pane changed directory
