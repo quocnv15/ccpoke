@@ -1,36 +1,14 @@
-import { createHash } from "node:crypto";
-import { existsSync, readdirSync, readFileSync, writeFileSync } from "node:fs";
-import { join, relative } from "node:path";
+import { existsSync, readFileSync, writeFileSync } from "node:fs";
+import { join } from "node:path";
 
-const PROJECT_ROOT = join(import.meta.dirname, "..");
-const HOOKS_DIR = join(PROJECT_ROOT, "hooks");
-const LOCK_FILE = join(PROJECT_ROOT, "ccpoke-lock.json");
-
-interface LockEntry {
-  hash: string;
-  version: string;
-}
-
-function computeHash(filePath: string): string {
-  const content = readFileSync(filePath);
-  return `sha256:${createHash("sha256").update(content).digest("hex")}`;
-}
-
-function collectHookFiles(dir: string, base: string = dir): string[] {
-  const entries = readdirSync(dir, { withFileTypes: true });
-  const files: string[] = [];
-
-  for (const entry of entries) {
-    const fullPath = join(dir, entry.name);
-    if (entry.isDirectory()) {
-      files.push(...collectHookFiles(fullPath, base));
-    } else if (entry.isFile()) {
-      files.push(relative(base, fullPath));
-    }
-  }
-
-  return files.sort();
-}
+import {
+  PROJECT_ROOT,
+  HOOKS_DIR,
+  LOCK_FILE,
+  type LockEntry,
+  computeHash,
+  collectHookFiles,
+} from "./hook-hash-utils.js";
 
 function main(): void {
   const version = JSON.parse(readFileSync(join(PROJECT_ROOT, "package.json"), "utf-8")).version;

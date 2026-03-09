@@ -1,6 +1,15 @@
 import { execSync, spawn } from "node:child_process";
-import { existsSync, statSync } from "node:fs";
-import { basename, resolve } from "node:path";
+import {
+  copyFileSync,
+  existsSync,
+  mkdirSync,
+  readdirSync,
+  rmSync,
+  statSync,
+  unlinkSync,
+} from "node:fs";
+import { tmpdir } from "node:os";
+import { basename, join, resolve } from "node:path";
 
 import * as p from "@clack/prompts";
 import { WebClient } from "@slack/web-api";
@@ -673,35 +682,105 @@ function detectPsmuxInstaller(): PsmuxInstaller | null {
   return null;
 }
 
-async function installScoopAndRetry(): Promise<PsmuxInstaller | null> {
-  const shouldInstallScoop = await p.confirm({
-    message: t("setup.scoopAutoInstallPrompt"),
+async function downloadPsmuxFromGithub(): Promise<boolean> {
+  const shouldDownload = await p.confirm({
+    message: t("setup.psmuxDirectDownloadPrompt"),
     initialValue: true,
   });
 
-  if (p.isCancel(shouldInstallScoop) || !shouldInstallScoop) {
-    return null;
+  if (p.isCancel(shouldDownload) || !shouldDownload) {
+    return false;
   }
 
   const s = p.spinner();
-  s.start("Installing Scoop...");
-  try {
-    await spawnAsync("powershell.exe", [
-      "-NoProfile",
-      "-ExecutionPolicy",
-      "RemoteSigned",
-      "-Command",
-      "$ErrorActionPreference='Stop'; Set-ExecutionPolicy -ExecutionPolicy RemoteSigned -Scope CurrentUser -Force; irm get.scoop.sh | iex",
-    ]);
-    refreshWindowsPath();
-    s.stop("Scoop installed");
-  } catch {
-    s.stop("Scoop install failed");
-    p.log.warn(t("setup.scoopInstallFailed"));
-    return null;
-  }
+  s.start(t("setup.psmuxDownloading"));
 
-  return detectPsmuxInstaller();
+  try {
+    const archMap: Record<string, string> = { x64: "x64", arm64: "arm64", ia32: "x86" };
+    const arch = archMap[process.arch] ?? "x64";
+
+    const releaseJson = execSync(
+      'curl.exe -s "https://api.github.com/repos/marlocarlo/psmux/releases/latest"',
+      { encoding: "utf-8", stdio: "pipe", timeout: 15000 }
+    );
+    const release = JSON.parse(releaseJson) as {
+      tag_name: string;
+      assets: { name: string; browser_download_url: string }[];
+    };
+    const assetName = `psmux-${release.tag_name}-windows-${arch}.zip`;
+    const asset = release.assets?.find((a) => a.name === assetName);
+    if (!asset) {
+      s.stop(t("setup.psmuxDownloadFailed"));
+      return false;
+    }
+
+    const zipPath = join(tmpdir(), `psmux-${Date.now()}.zip`);
+    const installDir = join(
+      process.env.LOCALAPPDATA || join(process.env.USERPROFILE || "", "AppData", "Local"),
+      "psmux"
+    );
+
+    execSync(`curl.exe -L -s -o "${zipPath}" "${asset.browser_download_url}"`, {
+      stdio: "pipe",
+      timeout: 120000,
+    });
+
+    mkdirSync(installDir, { recursive: true });
+    execSync(`tar -xf "${zipPath}" -C "${installDir}"`, { stdio: "pipe", timeout: 30000 });
+
+    const entries = readdirSync(installDir);
+    const subDir = entries.find((e) => {
+      try {
+        return statSync(join(installDir, e)).isDirectory();
+      } catch {
+        return false;
+      }
+    });
+    if (subDir) {
+      const subDirPath = join(installDir, subDir);
+      for (const file of readdirSync(subDirPath)) {
+        copyFileSync(join(subDirPath, file), join(installDir, file));
+      }
+      rmSync(subDirPath, { recursive: true, force: true });
+    }
+
+    try {
+      const regOutput = execSync('reg query "HKCU\\Environment" /v Path', {
+        encoding: "utf-8",
+        stdio: "pipe",
+        timeout: 5000,
+      });
+      const currentPath = regOutput.match(/REG_(?:EXPAND_)?SZ\s+(.+)/)?.[1]?.trim() ?? "";
+      if (!currentPath.toLowerCase().includes(installDir.toLowerCase())) {
+        const newPath = currentPath ? `${currentPath};${installDir}` : installDir;
+        execSync(`reg add "HKCU\\Environment" /v Path /t REG_EXPAND_SZ /d "${newPath}" /f`, {
+          stdio: "pipe",
+          timeout: 5000,
+        });
+      }
+    } catch {
+      execSync(`reg add "HKCU\\Environment" /v Path /t REG_EXPAND_SZ /d "${installDir}" /f`, {
+        stdio: "pipe",
+        timeout: 5000,
+      });
+    }
+
+    try {
+      unlinkSync(zipPath);
+    } catch {
+      /* best-effort */
+    }
+
+    refreshWindowsPath();
+    resetTmuxBinaryCache();
+
+    s.stop(t("setup.tmuxInstallSuccess"));
+    p.log.info(t("setup.tmuxWindowsPathRefreshHint"));
+    return true;
+  } catch {
+    s.stop(t("setup.psmuxDownloadFailed"));
+    return false;
+  }
 }
 
 async function promptTmuxSetup(): Promise<void> {
@@ -722,25 +801,25 @@ async function promptTmuxSetup(): Promise<void> {
       return;
     }
 
-    let installer = detectPsmuxInstaller();
-    if (!installer) {
-      installer = await installScoopAndRetry();
-    }
-    if (!installer) {
-      p.log.warn(t("setup.tmuxWindowsInstallFailed"));
+    const installer = detectPsmuxInstaller();
+    if (installer) {
+      const s = p.spinner();
+      s.start(`${installer.name}: ${installer.install}`);
+      try {
+        await runCommandAsync(installer.install);
+        refreshWindowsPath();
+        resetTmuxBinaryCache();
+        s.stop(t("setup.tmuxInstallSuccess"));
+        p.log.info(t("setup.tmuxWindowsPathRefreshHint"));
+      } catch {
+        s.stop(`${installer.name} failed`);
+        p.log.warn(t("setup.tmuxWindowsInstallFailed"));
+      }
       return;
     }
 
-    const s = p.spinner();
-    s.start(`${installer.name}: ${installer.install}`);
-    try {
-      await runCommandAsync(installer.install);
-      refreshWindowsPath();
-      resetTmuxBinaryCache();
-      s.stop(t("setup.tmuxInstallSuccess"));
-      p.log.info(t("setup.tmuxWindowsPathRefreshHint"));
-    } catch {
-      s.stop(`${installer.name} failed`);
+    const downloaded = await downloadPsmuxFromGithub();
+    if (!downloaded) {
       p.log.warn(t("setup.tmuxWindowsInstallFailed"));
     }
     return;

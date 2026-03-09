@@ -43,6 +43,11 @@ export class HookScriptCopier {
 
     if (isWindows()) {
       HookScriptCopier.copy(join("lib", "common.cmd"), join(paths.hookLibDir, "common.cmd"));
+      HookScriptCopier.copy(join("lib", "json-read.cjs"), join(paths.hookLibDir, "json-read.cjs"));
+      HookScriptCopier.copy(
+        join("lib", "json-merge.cjs"),
+        join(paths.hookLibDir, "json-merge.cjs")
+      );
     } else {
       HookScriptCopier.copy(join("lib", "common.sh"), join(paths.hookLibDir, "common.sh"));
     }
