@@ -1,18 +1,10 @@
 import { execSync, spawn } from "node:child_process";
-import {
-  copyFileSync,
-  existsSync,
-  mkdirSync,
-  readdirSync,
-  rmSync,
-  statSync,
-  unlinkSync,
-} from "node:fs";
-import { tmpdir } from "node:os";
+import { copyFileSync, existsSync, mkdirSync, readdirSync, rmSync, statSync } from "node:fs";
 import { basename, join, resolve } from "node:path";
 
 import * as p from "@clack/prompts";
 import { WebClient } from "@slack/web-api";
+import AdmZip from "adm-zip";
 import { Client, Events, GatewayIntentBits, Partials } from "discord.js";
 import TelegramBot from "node-telegram-bot-api";
 import qrcode from "qrcode-terminal";
@@ -699,11 +691,13 @@ async function downloadPsmuxFromGithub(): Promise<boolean> {
     const archMap: Record<string, string> = { x64: "x64", arm64: "arm64", ia32: "x86" };
     const arch = archMap[process.arch] ?? "x64";
 
-    const releaseJson = execSync(
-      'curl.exe -s "https://api.github.com/repos/marlocarlo/psmux/releases/latest"',
-      { encoding: "utf-8", stdio: "pipe", timeout: 15000 }
-    );
-    const release = JSON.parse(releaseJson) as {
+    const releaseRes = await fetch("https://api.github.com/repos/marlocarlo/psmux/releases/latest");
+    if (!releaseRes.ok) {
+      s.stop(t("setup.psmuxDownloadFailed"));
+      p.log.error(`GitHub API responded with ${releaseRes.status}`);
+      return false;
+    }
+    const release = (await releaseRes.json()) as {
       tag_name: string;
       assets: { name: string; browser_download_url: string }[];
     };
@@ -714,19 +708,21 @@ async function downloadPsmuxFromGithub(): Promise<boolean> {
       return false;
     }
 
-    const zipPath = join(tmpdir(), `psmux-${Date.now()}.zip`);
     const installDir = join(
       process.env.LOCALAPPDATA || join(process.env.USERPROFILE || "", "AppData", "Local"),
       "psmux"
     );
 
-    execSync(`curl.exe -L -s -o "${zipPath}" "${asset.browser_download_url}"`, {
-      stdio: "pipe",
-      timeout: 120000,
-    });
+    const zipRes = await fetch(asset.browser_download_url, { redirect: "follow" });
+    if (!zipRes.ok) {
+      s.stop(t("setup.psmuxDownloadFailed"));
+      p.log.error(`Download failed with ${zipRes.status}`);
+      return false;
+    }
+    const zipBuffer = Buffer.from(await zipRes.arrayBuffer());
 
     mkdirSync(installDir, { recursive: true });
-    execSync(`tar -xf "${zipPath}" -C "${installDir}"`, { stdio: "pipe", timeout: 30000 });
+    new AdmZip(zipBuffer).extractAllTo(installDir, true);
 
     const entries = readdirSync(installDir);
     const subDir = entries.find((e) => {
@@ -744,8 +740,10 @@ async function downloadPsmuxFromGithub(): Promise<boolean> {
       rmSync(subDirPath, { recursive: true, force: true });
     }
 
+    const regExe = join(process.env.SystemRoot || "C:\\Windows", "System32", "reg.exe");
+
     try {
-      const regOutput = execSync('reg query "HKCU\\Environment" /v Path', {
+      const regOutput = execSync(`"${regExe}" query "HKCU\\Environment" /v Path`, {
         encoding: "utf-8",
         stdio: "pipe",
         timeout: 5000,
@@ -753,22 +751,20 @@ async function downloadPsmuxFromGithub(): Promise<boolean> {
       const currentPath = regOutput.match(/REG_(?:EXPAND_)?SZ\s+(.+)/)?.[1]?.trim() ?? "";
       if (!currentPath.toLowerCase().includes(installDir.toLowerCase())) {
         const newPath = currentPath ? `${currentPath};${installDir}` : installDir;
-        execSync(`reg add "HKCU\\Environment" /v Path /t REG_EXPAND_SZ /d "${newPath}" /f`, {
-          stdio: "pipe",
-          timeout: 5000,
-        });
+        execSync(
+          `"${regExe}" add "HKCU\\Environment" /v Path /t REG_EXPAND_SZ /d "${newPath}" /f`,
+          { stdio: "pipe", timeout: 5000 }
+        );
       }
     } catch {
-      execSync(`reg add "HKCU\\Environment" /v Path /t REG_EXPAND_SZ /d "${installDir}" /f`, {
-        stdio: "pipe",
-        timeout: 5000,
-      });
-    }
-
-    try {
-      unlinkSync(zipPath);
-    } catch {
-      /* best-effort */
+      try {
+        execSync(
+          `"${regExe}" add "HKCU\\Environment" /v Path /t REG_EXPAND_SZ /d "${installDir}" /f`,
+          { stdio: "pipe", timeout: 5000 }
+        );
+      } catch {
+        p.log.warn(t("setup.tmuxWindowsPathRefreshHint"));
+      }
     }
 
     refreshWindowsPath();
@@ -777,8 +773,10 @@ async function downloadPsmuxFromGithub(): Promise<boolean> {
     s.stop(t("setup.tmuxInstallSuccess"));
     p.log.info(t("setup.tmuxWindowsPathRefreshHint"));
     return true;
-  } catch {
+  } catch (err) {
+    const detail = err instanceof Error ? err.message : String(err);
     s.stop(t("setup.psmuxDownloadFailed"));
+    p.log.error(`psmux download error: ${detail}`);
     return false;
   }
 }
