@@ -79,11 +79,10 @@ export const en: TranslationKeys = {
     tmuxInstallSkipped: "Skipped tmux install — 2-way chat disabled, notifications still work",
     tmuxWindowsInstallPrompt: "Install tmux for 2-way chat support on Windows?",
     tmuxWindowsInstallFailed:
-      "Failed to install tmux. Try manually:\n  irm https://raw.githubusercontent.com/marlocarlo/psmux/master/scripts/install.ps1 | iex",
-    scoopAutoInstallPrompt:
-      "No package manager found (winget/scoop/choco). Install Scoop automatically to continue?",
-    scoopInstallFailed:
-      "Failed to install Scoop. Install a package manager manually:\n  Scoop: irm get.scoop.sh | iex\n  Then re-run: ccpoke setup",
+      "Failed to install tmux. Try manually:\n  winget install marlocarlo.psmux",
+    psmuxDirectDownloadPrompt: "No package manager found. Download psmux directly from GitHub?",
+    psmuxDownloading: "Downloading psmux from GitHub...",
+    psmuxDownloadFailed: "Failed to download psmux from GitHub",
     tmuxWindowsPathRefreshHint:
       "To use tmux, fully close VS Code (not just Reload Window) and reopen it so the updated PATH takes effect.",
     addProjectPrompt: "Add a project to create agent sessions?",

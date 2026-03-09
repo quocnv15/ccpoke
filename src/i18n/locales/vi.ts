@@ -79,11 +79,10 @@ export const vi: TranslationKeys = {
     tmuxInstallSkipped: "Bỏ qua cài tmux — chat 2 chiều tắt, notification vẫn hoạt động",
     tmuxWindowsInstallPrompt: "Cài tmux để sử dụng tính năng chat 2 chiều trên Windows?",
     tmuxWindowsInstallFailed:
-      "Cài tmux thất bại. Thử cài thủ công:\n  irm https://raw.githubusercontent.com/marlocarlo/psmux/master/scripts/install.ps1 | iex",
-    scoopAutoInstallPrompt:
-      "Không tìm thấy package manager nào (winget/scoop/choco). Tự động cài Scoop để tiếp tục?",
-    scoopInstallFailed:
-      "Cài Scoop thất bại. Hãy cài package manager thủ công:\n  Scoop: irm get.scoop.sh | iex\n  Sau đó chạy lại: ccpoke setup",
+      "Cài tmux thất bại. Thử cài thủ công:\n  winget install marlocarlo.psmux",
+    psmuxDirectDownloadPrompt: "Không tìm thấy package manager. Tải psmux trực tiếp từ GitHub?",
+    psmuxDownloading: "Đang tải psmux từ GitHub...",
+    psmuxDownloadFailed: "Tải psmux từ GitHub thất bại",
     tmuxWindowsPathRefreshHint:
       "Để dùng tmux, hãy tắt hoàn toàn VS Code (không phải Reload Window) rồi mở lại để PATH được cập nhật.",
     addProjectPrompt: "Thêm project để tạo session agent?",

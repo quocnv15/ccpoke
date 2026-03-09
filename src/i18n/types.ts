@@ -72,8 +72,9 @@ export interface TranslationKeys {
     tmuxInstallSkipped: string;
     tmuxWindowsInstallPrompt: string;
     tmuxWindowsInstallFailed: string;
-    scoopAutoInstallPrompt: string;
-    scoopInstallFailed: string;
+    psmuxDirectDownloadPrompt: string;
+    psmuxDownloading: string;
+    psmuxDownloadFailed: string;
     tmuxWindowsPathRefreshHint: string;
     addProjectPrompt: string;
     addAnotherProject: string;
