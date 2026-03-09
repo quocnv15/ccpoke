@@ -76,8 +76,8 @@ export const zh: TranslationKeys = {
       "无法自动安装 tmux。请手动安装:\n  macOS: brew install tmux\n  Linux: sudo apt install tmux",
     tmuxInstallSkipped: "跳过 tmux 安装 — 双向聊天已禁用，通知仍正常工作",
     tmuxWindowsInstallPrompt: "安装 tmux 以支持 Windows 上的双向聊天？",
-    tmuxWindowsInstallFailed: "安装 tmux 失败。请手动安装：\n  winget install marlocarlo.psmux",
-    psmuxDirectDownloadPrompt: "未找到包管理器。直接从 GitHub 下载 psmux？",
+    tmuxWindowsInstallFailed:
+      "安装 psmux 失败。请访问 https://github.com/marlocarlo/psmux/releases 手动下载。",
     psmuxDownloading: "正在从 GitHub 下载 psmux...",
     psmuxDownloadFailed: "从 GitHub 下载 psmux 失败",
     tmuxWindowsPathRefreshHint:

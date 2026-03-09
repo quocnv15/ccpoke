@@ -79,8 +79,7 @@ export const vi: TranslationKeys = {
     tmuxInstallSkipped: "Bỏ qua cài tmux — chat 2 chiều tắt, notification vẫn hoạt động",
     tmuxWindowsInstallPrompt: "Cài tmux để sử dụng tính năng chat 2 chiều trên Windows?",
     tmuxWindowsInstallFailed:
-      "Cài tmux thất bại. Thử cài thủ công:\n  winget install marlocarlo.psmux",
-    psmuxDirectDownloadPrompt: "Không tìm thấy package manager. Tải psmux trực tiếp từ GitHub?",
+      "Cài psmux thất bại. Truy cập https://github.com/marlocarlo/psmux/releases để tải thủ công.",
     psmuxDownloading: "Đang tải psmux từ GitHub...",
     psmuxDownloadFailed: "Tải psmux từ GitHub thất bại",
     tmuxWindowsPathRefreshHint:

@@ -72,7 +72,6 @@ export interface TranslationKeys {
     tmuxInstallSkipped: string;
     tmuxWindowsInstallPrompt: string;
     tmuxWindowsInstallFailed: string;
-    psmuxDirectDownloadPrompt: string;
     psmuxDownloading: string;
     psmuxDownloadFailed: string;
     tmuxWindowsPathRefreshHint: string;

@@ -79,8 +79,7 @@ export const en: TranslationKeys = {
     tmuxInstallSkipped: "Skipped tmux install — 2-way chat disabled, notifications still work",
     tmuxWindowsInstallPrompt: "Install tmux for 2-way chat support on Windows?",
     tmuxWindowsInstallFailed:
-      "Failed to install tmux. Try manually:\n  winget install marlocarlo.psmux",
-    psmuxDirectDownloadPrompt: "No package manager found. Download psmux directly from GitHub?",
+      "Failed to install psmux. Visit https://github.com/marlocarlo/psmux/releases for manual download.",
     psmuxDownloading: "Downloading psmux from GitHub...",
     psmuxDownloadFailed: "Failed to download psmux from GitHub",
     tmuxWindowsPathRefreshHint:
