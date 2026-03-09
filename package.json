@@ -36,6 +36,8 @@
   },
   "files": [
     "dist",
+    "hooks",
+    "ccpoke-lock.json",
     "LICENSE",
     "README.md",
     "README.en.md"
@@ -56,6 +58,8 @@
     "lint:fix": "eslint src/ --fix",
     "format": "prettier --write 'src/**/*.ts'",
     "format:check": "prettier --check 'src/**/*.ts'",
+    "hash:update": "tsx scripts/update-hook-hashes.ts",
+    "hash:check": "tsx scripts/check-hook-hashes.ts",
     "prepare": "husky"
   },
   "lint-staged": {
