@@ -210,6 +210,7 @@ export function isAgentIdleByProcess(
 
 export interface AgentScanOutput {
   panes: AgentPaneInfo[];
+  allPaneTargets: Set<string>;
   tree: ProcessTree;
 }
 
@@ -261,27 +262,31 @@ export function scanAgentPanes(): AgentScanOutput {
 
     const tree = buildProcessTree();
 
-    const panes: AgentPaneInfo[] = output
+    const allLines = output
       .replace(/\r/g, "")
       .trim()
       .split("\n")
-      .filter((line) => line.length > 0)
-      .map((line: string): AgentPaneInfo | null => {
-        const parts = line.split("|");
-        if (parts.length < 4) return null;
-        const target = parts[0]!;
-        const panePid = parts[parts.length - 1]!;
-        const cwd = parts[parts.length - 2]!;
-        const paneTitle = parts.slice(1, parts.length - 2).join("|");
-        const agentName = findAgentDescendant(panePid, tree);
-        if (!agentName) return null;
-        return { target, paneTitle, cwd, panePid, agentName };
-      })
-      .filter((pane): pane is AgentPaneInfo => pane !== null);
+      .filter((line) => line.length > 0);
 
-    return { panes, tree };
+    const allPaneTargets = new Set<string>();
+    const panes: AgentPaneInfo[] = [];
+
+    for (const line of allLines) {
+      const parts = line.split("|");
+      if (parts.length < 4) continue;
+      const target = parts[0]!;
+      allPaneTargets.add(target);
+      const panePid = parts[parts.length - 1]!;
+      const cwd = parts[parts.length - 2]!;
+      const paneTitle = parts.slice(1, parts.length - 2).join("|");
+      const agentName = findAgentDescendant(panePid, tree);
+      if (!agentName) continue;
+      panes.push({ target, paneTitle, cwd, panePid, agentName });
+    }
+
+    return { panes, allPaneTargets, tree };
   } catch {
-    return { panes: [], tree: new Map() };
+    return { panes: [], allPaneTargets: new Set(), tree: new Map() };
   }
 }
 

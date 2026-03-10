@@ -183,14 +183,12 @@ export class SessionMap {
   }
 
   refreshFromTmux(tmuxBridge: TmuxBridge): ScanResult {
-    const { panes, tree } = scanAgentPanes();
+    const { panes, allPaneTargets, tree } = scanAgentPanes();
     const discovered: TmuxSession[] = [];
     const removed: TmuxSession[] = [];
 
-    const alivePaneTargets = new Set(panes.map((p) => p.target));
-
     for (const [id, session] of this.sessions) {
-      if (!alivePaneTargets.has(session.tmuxTarget)) {
+      if (!allPaneTargets.has(session.tmuxTarget)) {
         logDebug(
           `[Scan:remove] id=${id} tmuxTarget=${session.tmuxTarget} project=${session.project}`
         );

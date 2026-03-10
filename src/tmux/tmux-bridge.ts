@@ -147,6 +147,7 @@ export class TmuxBridge {
   }
 
   createPane(sessionName: string, cwd: string): string {
+    this.ensureServer();
     const bin = getTmuxBinary();
     const dir = escapeShellArg(cwd);
     const formatArg = escapeShellArg("#{session_name}:#{window_index}.#{pane_index}");
@@ -179,6 +180,16 @@ export class TmuxBridge {
     }
 
     return paneTarget;
+  }
+
+  private ensureServer(): void {
+    if (!isWindows()) return;
+    const bin = getTmuxBinary();
+    try {
+      execSync(`${bin} start-server`, { stdio: "pipe", timeout: 3000 });
+    } catch {
+      // server may already be running or start-server not supported
+    }
   }
 
   private changePaneCwd(paneTarget: string, cwd: string): void {
