@@ -44,7 +44,7 @@ export class ApiServer {
       this.server.on("error", (err: NodeJS.ErrnoException) => {
         if (err.code === "EADDRINUSE") {
           const killCommand = isWindows()
-            ? `Stop-Process -Id (Get-NetTCPConnection -LocalPort ${this.port}).OwningProcess -Force`
+            ? `for /f "tokens=5" %a in ('netstat -ano ^| findstr :${this.port} ^| findstr LISTENING') do taskkill /PID %a /F`
             : `kill $(lsof -ti:${this.port})`;
           logError(t("bot.alreadyRunning", { port: this.port, killCommand }));
           process.exit(1);
