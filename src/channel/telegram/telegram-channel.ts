@@ -34,6 +34,7 @@ export class TelegramChannel implements NotificationChannel {
   private cfg: Config;
   private chatId: number | null = null;
   private isDisconnected = false;
+  private consecutivePollingErrors = 0;
   private reconnectTimer: ReturnType<typeof setTimeout> | null = null;
   private heartbeatInterval: ReturnType<typeof setInterval> | null = null;
   private lastPollingActivity = Date.now();
@@ -48,6 +49,7 @@ export class TelegramChannel implements NotificationChannel {
   private promptHandler: PromptHandler | null = null;
   private askQuestionHandler: AskQuestionHandler | null = null;
   private permissionRequestHandler: PermissionRequestHandler | null = null;
+  private processedUpdateIds = new Map<string, number>();
 
   constructor(cfg: Config, deps?: ChannelDeps) {
     this.cfg = cfg;
@@ -68,6 +70,7 @@ export class TelegramChannel implements NotificationChannel {
     this.registerProjectsHandlers();
     this.registerPollingErrorHandler();
     this.registerTakeoverListener();
+    this.patchProcessUpdate();
 
     this.pendingReplyStore.setOnCleanup((chatId, messageId) => {
       this.bot.deleteMessage(chatId, messageId).catch(() => {});
@@ -378,6 +381,18 @@ export class TelegramChannel implements NotificationChannel {
         `[TG:msg] msgId=${msg.message_id} from=${msg.from?.id ?? "?"} chatId=${msg.chat.id} hasReply=${!!msg.reply_to_message} hasText=${!!msg.text}`
       );
       if (!msg.reply_to_message) {
+        if (
+          msg.text &&
+          !msg.text.startsWith("/") &&
+          !msg.text.startsWith("__ccpoke_") &&
+          ConfigManager.isOwner(this.cfg, msg.from?.id ?? 0)
+        ) {
+          await this.bot
+            .sendMessage(msg.chat.id, t("chat.directMessageHint"), {
+              reply_to_message_id: msg.message_id,
+            })
+            .catch(() => {});
+        }
         logDebug(`[TG:msg] dropped: no reply_to_message msgId=${msg.message_id}`);
         return;
       }
@@ -623,6 +638,15 @@ export class TelegramChannel implements NotificationChannel {
     try {
       const { paneTarget, needsTrust } = launchAgent(this.tmuxBridge, project.path, agentKey);
 
+      this.sessionMap?.register(
+        `pre-${paneTarget.replace(/[:.]/g, "-")}`,
+        paneTarget,
+        project.name,
+        project.path,
+        "",
+        agentKey as AgentName
+      );
+
       if (needsTrust) {
         autoTrustWorkspace(
           this.tmuxBridge,
@@ -803,6 +827,43 @@ export class TelegramChannel implements NotificationChannel {
     });
   }
 
+  private patchProcessUpdate(): void {
+    const originalGetUpdates = this.bot.getUpdates.bind(this.bot);
+    this.bot.getUpdates = (...args: Parameters<typeof this.bot.getUpdates>) => {
+      this.lastPollingActivity = Date.now();
+      return originalGetUpdates(...args);
+    };
+
+    const original = this.bot.processUpdate.bind(this.bot);
+    // eslint-disable-next-line @typescript-eslint/no-explicit-any
+    this.bot.processUpdate = (update: any) => {
+      const uid = update.update_id as number;
+      const key = `uid:${uid}`;
+      this.lastPollingActivity = Date.now();
+      this.consecutivePollingErrors = 0;
+      if (this.isDisconnected) {
+        this.isDisconnected = false;
+        log(t("bot.connectionRestored"));
+      }
+      if (this.processedUpdateIds.has(key)) {
+        logWarn(`[Polling] duplicate update_id=${uid} skipped`);
+        return;
+      }
+      this.processedUpdateIds.set(key, Date.now());
+      this.trimProcessedIds();
+      return original(update);
+    };
+  }
+
+  private trimProcessedIds(): void {
+    if (this.processedUpdateIds.size > 500) {
+      const cutoff = Date.now() - 60_000;
+      for (const [key, ts] of this.processedUpdateIds) {
+        if (ts < cutoff) this.processedUpdateIds.delete(key);
+      }
+    }
+  }
+
   private registerTakeoverListener(): void {
     this.bot.on("message", (msg) => {
       if (!msg.text?.startsWith("__ccpoke_takeover:")) return;
@@ -819,42 +880,45 @@ export class TelegramChannel implements NotificationChannel {
     const HEARTBEAT_INTERVAL_MS = 10_000;
     const RESTART_DELAY_MS = 2_000;
     const STARTUP_GRACE_MS = 15_000;
+    const DISCONNECT_THRESHOLD = 3;
 
-    this.bot.on("polling_error", () => {
-      this.lastPollingActivity = Date.now();
-      if (!this.isDisconnected) {
+    this.bot.on("polling_error", (err: unknown) => {
+      this.consecutivePollingErrors++;
+
+      if (this.consecutivePollingErrors <= DISCONNECT_THRESHOLD) {
+        const errMsg = err instanceof Error ? err.message : String(err ?? "unknown");
+        logDebug(`[Polling] error #${this.consecutivePollingErrors}: ${errMsg}`);
+      }
+
+      if (!this.isDisconnected && this.consecutivePollingErrors >= DISCONNECT_THRESHOLD) {
         this.isDisconnected = true;
-        if (Date.now() - this.startedAt < STARTUP_GRACE_MS) {
-          logDebug("polling_error during startup grace — expected, suppressed");
-        } else {
+        if (Date.now() - this.startedAt >= STARTUP_GRACE_MS) {
           logWarn(t("bot.connectionLost"));
         }
       }
     });
 
-    this.bot.on("polling", () => {
-      this.lastPollingActivity = Date.now();
-      if (this.isDisconnected) {
-        this.isDisconnected = false;
-        log(t("bot.connectionRestored"));
-      }
-    });
-
     this.heartbeatInterval = setInterval(() => {
       if (this.reconnectTimer) return;
+      if (Date.now() - this.startedAt < STARTUP_GRACE_MS) return;
       const staleMs = Date.now() - this.lastPollingActivity;
       if (staleMs < STALE_THRESHOLD_MS) return;
       logWarn(t("bot.pollingRestart"));
       this.isDisconnected = true;
       this.lastPollingActivity = Date.now();
-      try {
-        this.bot.stopPolling({ cancel: true, reason: "stale polling" });
-      } catch {
-        // already stopped
-      }
-      this.reconnectTimer = setTimeout(() => {
-        this.reconnectTimer = null;
+      this.reconnectTimer = setTimeout(async () => {
+        try {
+          const polling = (this.bot as unknown as Record<string, unknown>)._polling as
+            | { _abort?: boolean }
+            | undefined;
+          if (polling) polling._abort = true;
+          await this.bot.stopPolling({ cancel: true, reason: "stale polling" });
+        } catch {
+          // already stopped
+        }
         this.bot.startPolling();
+        this.lastPollingActivity = Date.now();
+        this.reconnectTimer = null;
         log(t("bot.pollingRestarted"));
       }, RESTART_DELAY_MS);
     }, HEARTBEAT_INTERVAL_MS);

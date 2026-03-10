@@ -77,12 +77,11 @@ export const zh: TranslationKeys = {
     tmuxInstallSkipped: "跳过 tmux 安装 — 双向聊天已禁用，通知仍正常工作",
     tmuxWindowsInstallPrompt: "安装 tmux 以支持 Windows 上的双向聊天？",
     tmuxWindowsInstallFailed:
-      "安装 tmux 失败。请手动安装：\n  irm https://raw.githubusercontent.com/marlocarlo/psmux/master/scripts/install.ps1 | iex",
-    scoopAutoInstallPrompt: "未找到包管理器 (winget/scoop/choco)。自动安装 Scoop 以继续？",
-    scoopInstallFailed:
-      "安装 Scoop 失败。请手动安装包管理器：\n  Scoop: irm get.scoop.sh | iex\n  然后重新运行: ccpoke setup",
+      "安装 psmux 失败。请访问 https://github.com/marlocarlo/psmux/releases 手动下载。",
+    psmuxDownloading: "正在从 GitHub 下载 psmux...",
+    psmuxDownloadFailed: "从 GitHub 下载 psmux 失败",
     tmuxWindowsPathRefreshHint:
-      "要使用 tmux，请完全关闭 VS Code（不是 Reload Window），然后重新打开以使更新的 PATH 生效。",
+      "要使用 tmux，请关闭当前终端或 VS Code，然后重新打开以使更新的 PATH 生效。",
     addProjectPrompt: "添加项目以创建 agent 会话？",
     addAnotherProject: "添加另一个项目？",
     projectAdded: '已添加 "{name}" → {path}',
@@ -223,7 +222,7 @@ export const zh: TranslationKeys = {
   },
   tmux: {
     notAvailable: "未安装 tmux — 双向聊天已禁用，通知仍正常工作",
-    scanComplete: "tmux: 找到 {count} 个 Claude Code 会话",
+    scanComplete: "tmux: 找到 {count} 个会话",
     sessionRegistered: "已注册会话: {sessionId} → {target} ({project})",
     sessionDiscovered: "发现会话: {target} ({project})",
     sessionLost: "失去会话: {target} ({project})",
@@ -235,6 +234,7 @@ export const zh: TranslationKeys = {
   chat: {
     placeholder: "给 Claude 发消息...",
     replyHint: "在下方输入消息 ↓",
+    directMessageHint: "不支持直接发消息。请使用通知或 /sessions 中的 💬 Chat 按钮。",
     sessionExpired: "会话已过期或关闭",
     sessionNotFound: "未找到会话",
     tmuxDead: "tmux 会话已断开",

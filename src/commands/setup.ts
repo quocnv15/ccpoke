@@ -1,9 +1,10 @@
 import { execSync, spawn } from "node:child_process";
-import { existsSync, statSync } from "node:fs";
-import { basename, resolve } from "node:path";
+import { copyFileSync, existsSync, mkdirSync, readdirSync, rmSync, statSync } from "node:fs";
+import { basename, join, resolve } from "node:path";
 
 import * as p from "@clack/prompts";
 import { WebClient } from "@slack/web-api";
+import AdmZip from "adm-zip";
 import { Client, Events, GatewayIntentBits, Partials } from "discord.js";
 import TelegramBot from "node-telegram-bot-api";
 import qrcode from "qrcode-terminal";
@@ -11,6 +12,7 @@ import qrcode from "qrcode-terminal";
 import { createDefaultRegistry } from "../agent/agent-registry.js";
 import { AgentName } from "../agent/types.js";
 import { ConfigManager, type Config } from "../config-manager.js";
+import { HookEnvWriter } from "../hooks/hook-env-writer.js";
 import { Locale, LOCALE_LABELS, setLocale, SUPPORTED_LOCALES, t } from "../i18n/index.js";
 import { resetTmuxBinaryCache } from "../tmux/tmux-bridge.js";
 import {
@@ -282,6 +284,7 @@ function saveConfig(config: Config): void {
 
 function syncAgentHooks(config: Config, previousAgents: string[]): void {
   const registry = createDefaultRegistry();
+  HookEnvWriter.write(config.hook_port, config.hook_secret);
 
   const removedAgents = previousAgents.filter((a) => !config.agents.includes(a));
   for (const agentName of removedAgents) {
@@ -311,7 +314,7 @@ function syncAgentHooks(config: Config, previousAgents: string[]): void {
     }
 
     try {
-      provider.installHook(config.hook_port, config.hook_secret);
+      provider.installHook();
       p.log.success(t("setup.agentHookInstalled", { agent: provider.displayName }));
     } catch (err: unknown) {
       p.log.error(
@@ -615,155 +618,32 @@ function getTmuxVersion(): string | null {
   }
 }
 
-function detectTmuxInstallCommand(): string | null {
+async function installTmux(): Promise<boolean> {
   if (isWindows()) {
-    return detectPsmuxInstaller()?.install ?? null;
+    return downloadPsmuxFromGithub();
   }
+
+  let installCmd: string | null = null;
 
   if (isMacOS()) {
     try {
       execSync("which brew", { stdio: "pipe" });
-      return "brew install tmux";
+      installCmd = "brew install tmux";
     } catch {
-      return null;
+      // no brew
     }
-  }
-
-  try {
-    execSync("which apt-get", { stdio: "pipe" });
-    return "sudo apt-get install -y tmux";
-  } catch {
-    return null;
-  }
-}
-
-interface PsmuxInstaller {
-  name: string;
-  check: string;
-  install: string;
-}
-
-const PSMUX_INSTALLERS: PsmuxInstaller[] = [
-  {
-    name: "winget",
-    check: "winget --version",
-    install:
-      "winget install marlocarlo.psmux --accept-source-agreements --accept-package-agreements",
-  },
-  {
-    name: "scoop",
-    check: "scoop --version",
-    install:
-      "scoop install https://raw.githubusercontent.com/marlocarlo/psmux/master/scoop/psmux.json",
-  },
-  { name: "choco", check: "choco --version", install: "choco install psmux -y" },
-];
-
-function detectPsmuxInstaller(): PsmuxInstaller | null {
-  for (const installer of PSMUX_INSTALLERS) {
+  } else {
     try {
-      execSync(installer.check, { stdio: "pipe", timeout: 5000 });
-      return installer;
+      execSync("which apt-get", { stdio: "pipe" });
+      installCmd = "sudo apt-get install -y tmux";
     } catch {
-      continue;
+      // no apt-get
     }
   }
-  return null;
-}
 
-async function installScoopAndRetry(): Promise<PsmuxInstaller | null> {
-  const shouldInstallScoop = await p.confirm({
-    message: t("setup.scoopAutoInstallPrompt"),
-    initialValue: true,
-  });
-
-  if (p.isCancel(shouldInstallScoop) || !shouldInstallScoop) {
-    return null;
-  }
-
-  const s = p.spinner();
-  s.start("Installing Scoop...");
-  try {
-    await spawnAsync("powershell.exe", [
-      "-NoProfile",
-      "-ExecutionPolicy",
-      "RemoteSigned",
-      "-Command",
-      "$ErrorActionPreference='Stop'; Set-ExecutionPolicy -ExecutionPolicy RemoteSigned -Scope CurrentUser -Force; irm get.scoop.sh | iex",
-    ]);
-    refreshWindowsPath();
-    s.stop("Scoop installed");
-  } catch {
-    s.stop("Scoop install failed");
-    p.log.warn(t("setup.scoopInstallFailed"));
-    return null;
-  }
-
-  return detectPsmuxInstaller();
-}
-
-async function promptTmuxSetup(): Promise<void> {
-  if (isWindows()) {
-    const version = getTmuxVersion() ?? getPsmuxVersion();
-    if (version) {
-      p.log.success(t("setup.tmuxDetected", { version }));
-      return;
-    }
-
-    const shouldInstall = await p.confirm({
-      message: t("setup.tmuxWindowsInstallPrompt"),
-      initialValue: true,
-    });
-
-    if (p.isCancel(shouldInstall) || !shouldInstall) {
-      p.log.info(t("setup.tmuxInstallSkipped"));
-      return;
-    }
-
-    let installer = detectPsmuxInstaller();
-    if (!installer) {
-      installer = await installScoopAndRetry();
-    }
-    if (!installer) {
-      p.log.warn(t("setup.tmuxWindowsInstallFailed"));
-      return;
-    }
-
-    const s = p.spinner();
-    s.start(`${installer.name}: ${installer.install}`);
-    try {
-      await runCommandAsync(installer.install);
-      refreshWindowsPath();
-      resetTmuxBinaryCache();
-      s.stop(t("setup.tmuxInstallSuccess"));
-      p.log.info(t("setup.tmuxWindowsPathRefreshHint"));
-    } catch {
-      s.stop(`${installer.name} failed`);
-      p.log.warn(t("setup.tmuxWindowsInstallFailed"));
-    }
-    return;
-  }
-
-  const tmuxVersion = getTmuxVersion();
-  if (tmuxVersion) {
-    p.log.success(t("setup.tmuxDetected", { version: tmuxVersion }));
-    return;
-  }
-
-  const shouldInstall = await p.confirm({
-    message: t("setup.tmuxInstallPrompt"),
-    initialValue: true,
-  });
-
-  if (p.isCancel(shouldInstall) || !shouldInstall) {
-    p.log.info(t("setup.tmuxInstallSkipped"));
-    return;
-  }
-
-  const installCmd = detectTmuxInstallCommand();
   if (!installCmd) {
     p.log.warn(t("setup.tmuxInstallFailed"));
-    return;
+    return false;
   }
 
   const s = p.spinner();
@@ -772,8 +652,132 @@ async function promptTmuxSetup(): Promise<void> {
   try {
     await runCommandAsync(installCmd);
     s.stop(t("setup.tmuxInstallSuccess"));
+    return true;
   } catch {
     s.stop(t("setup.tmuxInstallFailed"));
+    return false;
+  }
+}
+
+async function downloadPsmuxFromGithub(): Promise<boolean> {
+  const s = p.spinner();
+  s.start(t("setup.psmuxDownloading"));
+
+  try {
+    const archMap: Record<string, string> = { x64: "x64", arm64: "arm64", ia32: "x86" };
+    const arch = archMap[process.arch] ?? "x64";
+
+    const releaseRes = await fetch("https://api.github.com/repos/marlocarlo/psmux/releases/latest");
+    if (!releaseRes.ok) {
+      s.stop(t("setup.psmuxDownloadFailed"));
+      p.log.error(`GitHub API responded with ${releaseRes.status}`);
+      return false;
+    }
+    const release = (await releaseRes.json()) as {
+      tag_name: string;
+      assets: { name: string; browser_download_url: string }[];
+    };
+    const assetName = `psmux-${release.tag_name}-windows-${arch}.zip`;
+    const asset = release.assets?.find((a) => a.name === assetName);
+    if (!asset) {
+      s.stop(t("setup.psmuxDownloadFailed"));
+      return false;
+    }
+
+    const installDir = join(
+      process.env.LOCALAPPDATA || join(process.env.USERPROFILE || "", "AppData", "Local"),
+      "psmux"
+    );
+
+    const zipRes = await fetch(asset.browser_download_url, { redirect: "follow" });
+    if (!zipRes.ok) {
+      s.stop(t("setup.psmuxDownloadFailed"));
+      p.log.error(`Download failed with ${zipRes.status}`);
+      return false;
+    }
+    const zipBuffer = Buffer.from(await zipRes.arrayBuffer());
+
+    mkdirSync(installDir, { recursive: true });
+    new AdmZip(zipBuffer).extractAllTo(installDir, true);
+
+    const entries = readdirSync(installDir);
+    const subDir = entries.find((e) => {
+      try {
+        return statSync(join(installDir, e)).isDirectory();
+      } catch {
+        return false;
+      }
+    });
+    if (subDir) {
+      const subDirPath = join(installDir, subDir);
+      for (const file of readdirSync(subDirPath)) {
+        copyFileSync(join(subDirPath, file), join(installDir, file));
+      }
+      rmSync(subDirPath, { recursive: true, force: true });
+    }
+
+    const regExe = join(process.env.SystemRoot || "C:\\Windows", "System32", "reg.exe");
+
+    try {
+      const regOutput = execSync(`"${regExe}" query "HKCU\\Environment" /v Path`, {
+        encoding: "utf-8",
+        stdio: "pipe",
+        timeout: 5000,
+      });
+      const currentPath = regOutput.match(/REG_(?:EXPAND_)?SZ\s+(.+)/)?.[1]?.trim() ?? "";
+      if (!currentPath.toLowerCase().includes(installDir.toLowerCase())) {
+        const newPath = currentPath ? `${currentPath};${installDir}` : installDir;
+        execSync(
+          `"${regExe}" add "HKCU\\Environment" /v Path /t REG_EXPAND_SZ /d "${newPath}" /f`,
+          { stdio: "pipe", timeout: 5000 }
+        );
+      }
+    } catch {
+      try {
+        execSync(
+          `"${regExe}" add "HKCU\\Environment" /v Path /t REG_EXPAND_SZ /d "${installDir}" /f`,
+          { stdio: "pipe", timeout: 5000 }
+        );
+      } catch {
+        p.log.warn(t("setup.tmuxWindowsPathRefreshHint"));
+      }
+    }
+
+    refreshWindowsPath();
+    resetTmuxBinaryCache();
+
+    s.stop(t("setup.tmuxInstallSuccess"));
+    p.log.info(t("setup.tmuxWindowsPathRefreshHint"));
+    return true;
+  } catch (err) {
+    const detail = err instanceof Error ? err.message : String(err);
+    s.stop(t("setup.psmuxDownloadFailed"));
+    p.log.error(`psmux download error: ${detail}`);
+    return false;
+  }
+}
+
+async function promptTmuxSetup(): Promise<void> {
+  const version = isWindows() ? (getTmuxVersion() ?? getPsmuxVersion()) : getTmuxVersion();
+
+  if (version) {
+    p.log.success(t("setup.tmuxDetected", { version }));
+    return;
+  }
+
+  const shouldInstall = await p.confirm({
+    message: isWindows() ? t("setup.tmuxWindowsInstallPrompt") : t("setup.tmuxInstallPrompt"),
+    initialValue: true,
+  });
+
+  if (p.isCancel(shouldInstall) || !shouldInstall) {
+    p.log.info(t("setup.tmuxInstallSkipped"));
+    return;
+  }
+
+  const installed = await installTmux();
+  if (!installed) {
+    p.log.warn(isWindows() ? t("setup.tmuxWindowsInstallFailed") : t("setup.tmuxInstallFailed"));
   }
 }
 

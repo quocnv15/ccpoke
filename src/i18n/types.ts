@@ -72,8 +72,8 @@ export interface TranslationKeys {
     tmuxInstallSkipped: string;
     tmuxWindowsInstallPrompt: string;
     tmuxWindowsInstallFailed: string;
-    scoopAutoInstallPrompt: string;
-    scoopInstallFailed: string;
+    psmuxDownloading: string;
+    psmuxDownloadFailed: string;
     tmuxWindowsPathRefreshHint: string;
     addProjectPrompt: string;
     addAnotherProject: string;
@@ -220,6 +220,7 @@ export interface TranslationKeys {
   chat: {
     placeholder: string;
     replyHint: string;
+    directMessageHint: string;
     sessionExpired: string;
     sessionNotFound: string;
     tmuxDead: string;

@@ -160,6 +160,7 @@ export class TmuxBridge {
         stdio: "pipe",
         timeout: 5000,
       }).trim();
+      if (!paneTarget) paneTarget = `${sessionName}:0.0`;
     } else {
       const target = escapeShellArg(`${sessionName}:0`);
       paneTarget = execSync(`${bin} split-window -t ${target} -c ${dir} -P -F ${formatArg}`, {
@@ -167,6 +168,10 @@ export class TmuxBridge {
         stdio: "pipe",
         timeout: 5000,
       }).trim();
+
+      if (!paneTarget) {
+        paneTarget = this.resolveLastPane(bin, sessionName);
+      }
 
       execSync(`${bin} select-layout -t ${target} tiled`, {
         stdio: "pipe",
@@ -179,6 +184,22 @@ export class TmuxBridge {
     }
 
     return paneTarget;
+  }
+
+  private resolveLastPane(bin: string, sessionName: string): string {
+    try {
+      const formatArg = escapeShellArg("#{session_name}:#{window_index}.#{pane_index}");
+      return execSync(`${bin} list-panes -t ${escapeShellArg(sessionName)} -F ${formatArg}`, {
+        encoding: "utf-8",
+        stdio: "pipe",
+        timeout: 3000,
+      })
+        .trim()
+        .split("\n")
+        .pop()!;
+    } catch {
+      return `${sessionName}:0.0`;
+    }
   }
 
   private changePaneCwd(paneTarget: string, cwd: string): void {

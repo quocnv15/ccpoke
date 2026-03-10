@@ -51,6 +51,7 @@ export const ApiRoute = {
 
 export const DEFAULT_HOOK_PORT = 9377;
 export const MINI_APP_BASE_URL = "https://kaida-palooza.github.io/ccpoke";
+export const CCPOKE_MARKER = "ccpoke";
 
 export const ChannelName = {
   Telegram: "telegram",
@@ -85,14 +86,27 @@ export function isLinux(): boolean {
 export function refreshWindowsPath(): void {
   if (!isWindows()) return;
   try {
-    const userPath = execSync(
-      "powershell -NoProfile -Command \"[Environment]::GetEnvironmentVariable('Path', 'User')\"",
+    const userPathRaw = execSync('reg query "HKCU\\Environment" /v Path', {
+      encoding: "utf-8",
+      stdio: "pipe",
+      timeout: 5000,
+    });
+    const userPath =
+      userPathRaw
+        .replace(/\r/g, "")
+        .match(/REG_(?:EXPAND_)?SZ\s+(.+)/)?.[1]
+        ?.trim() ?? "";
+
+    const machinePathRaw = execSync(
+      'reg query "HKLM\\SYSTEM\\CurrentControlSet\\Control\\Session Manager\\Environment" /v Path',
       { encoding: "utf-8", stdio: "pipe", timeout: 5000 }
-    ).trim();
-    const machinePath = execSync(
-      "powershell -NoProfile -Command \"[Environment]::GetEnvironmentVariable('Path', 'Machine')\"",
-      { encoding: "utf-8", stdio: "pipe", timeout: 5000 }
-    ).trim();
+    );
+    const machinePath =
+      machinePathRaw
+        .replace(/\r/g, "")
+        .match(/REG_(?:EXPAND_)?SZ\s+(.+)/)?.[1]
+        ?.trim() ?? "";
+
     process.env.PATH = `${userPath};${machinePath}`;
   } catch {
     /* best-effort */

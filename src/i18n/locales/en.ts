@@ -79,13 +79,11 @@ export const en: TranslationKeys = {
     tmuxInstallSkipped: "Skipped tmux install — 2-way chat disabled, notifications still work",
     tmuxWindowsInstallPrompt: "Install tmux for 2-way chat support on Windows?",
     tmuxWindowsInstallFailed:
-      "Failed to install tmux. Try manually:\n  irm https://raw.githubusercontent.com/marlocarlo/psmux/master/scripts/install.ps1 | iex",
-    scoopAutoInstallPrompt:
-      "No package manager found (winget/scoop/choco). Install Scoop automatically to continue?",
-    scoopInstallFailed:
-      "Failed to install Scoop. Install a package manager manually:\n  Scoop: irm get.scoop.sh | iex\n  Then re-run: ccpoke setup",
+      "Failed to install psmux. Visit https://github.com/marlocarlo/psmux/releases for manual download.",
+    psmuxDownloading: "Downloading psmux from GitHub...",
+    psmuxDownloadFailed: "Failed to download psmux from GitHub",
     tmuxWindowsPathRefreshHint:
-      "To use tmux, fully close VS Code (not just Reload Window) and reopen it so the updated PATH takes effect.",
+      "To use tmux, close your current terminal or VS Code and reopen it so the updated PATH takes effect.",
     addProjectPrompt: "Add a project to create agent sessions?",
     addAnotherProject: "Add another project?",
     projectAdded: 'Added "{name}" → {path}',
@@ -227,7 +225,7 @@ export const en: TranslationKeys = {
   },
   tmux: {
     notAvailable: "tmux not installed — 2-way chat disabled, notifications still work",
-    scanComplete: "tmux: found {count} Claude Code session(s)",
+    scanComplete: "tmux: found {count} session(s)",
     sessionRegistered: "Session registered: {sessionId} → {target} ({project})",
     sessionDiscovered: "Session discovered: {target} ({project})",
     sessionLost: "Session lost: {target} ({project})",
@@ -239,6 +237,8 @@ export const en: TranslationKeys = {
   chat: {
     placeholder: "Message to Claude...",
     replyHint: "Type your message below ↓",
+    directMessageHint:
+      "Direct messages are not supported. Use the 💬 Chat button on a notification or in /sessions.",
     sessionExpired: "Session expired or closed",
     sessionNotFound: "Session not found",
     tmuxDead: "tmux session disconnected",

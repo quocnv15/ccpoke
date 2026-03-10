@@ -79,13 +79,11 @@ export const vi: TranslationKeys = {
     tmuxInstallSkipped: "Bỏ qua cài tmux — chat 2 chiều tắt, notification vẫn hoạt động",
     tmuxWindowsInstallPrompt: "Cài tmux để sử dụng tính năng chat 2 chiều trên Windows?",
     tmuxWindowsInstallFailed:
-      "Cài tmux thất bại. Thử cài thủ công:\n  irm https://raw.githubusercontent.com/marlocarlo/psmux/master/scripts/install.ps1 | iex",
-    scoopAutoInstallPrompt:
-      "Không tìm thấy package manager nào (winget/scoop/choco). Tự động cài Scoop để tiếp tục?",
-    scoopInstallFailed:
-      "Cài Scoop thất bại. Hãy cài package manager thủ công:\n  Scoop: irm get.scoop.sh | iex\n  Sau đó chạy lại: ccpoke setup",
+      "Cài psmux thất bại. Truy cập https://github.com/marlocarlo/psmux/releases để tải thủ công.",
+    psmuxDownloading: "Đang tải psmux từ GitHub...",
+    psmuxDownloadFailed: "Tải psmux từ GitHub thất bại",
     tmuxWindowsPathRefreshHint:
-      "Để dùng tmux, hãy tắt hoàn toàn VS Code (không phải Reload Window) rồi mở lại để PATH được cập nhật.",
+      "Để dùng tmux, hãy tắt terminal hoặc VS Code hiện tại rồi mở lại để PATH được cập nhật.",
     addProjectPrompt: "Thêm project để tạo session agent?",
     addAnotherProject: "Thêm project khác?",
     projectAdded: 'Đã thêm "{name}" → {path}',
@@ -227,7 +225,7 @@ export const vi: TranslationKeys = {
   },
   tmux: {
     notAvailable: "Chưa cài tmux — chat 2 chiều tắt, notification vẫn hoạt động",
-    scanComplete: "tmux: tìm thấy {count} Claude Code session(s)",
+    scanComplete: "tmux: tìm thấy {count} session(s)",
     sessionRegistered: "Đã đăng ký session: {sessionId} → {target} ({project})",
     sessionDiscovered: "Phát hiện session: {target} ({project})",
     sessionLost: "Mất session: {target} ({project})",
@@ -239,6 +237,8 @@ export const vi: TranslationKeys = {
   chat: {
     placeholder: "Nhắn cho Claude...",
     replyHint: "Nhập tin nhắn bên dưới ↓",
+    directMessageHint:
+      "Không thể nhắn trực tiếp. Hãy dùng nút 💬 Chat trên thông báo hoặc trong /sessions.",
     sessionExpired: "Session đã hết hạn hoặc đóng",
     sessionNotFound: "Không tìm thấy session",
     tmuxDead: "tmux session đã ngắt kết nối",

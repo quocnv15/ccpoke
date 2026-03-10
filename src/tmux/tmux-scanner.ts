@@ -80,30 +80,58 @@ function buildProcessTreeUnix(): ProcessTree {
 
 function buildProcessTreeWindows(): ProcessTree {
   try {
-    const output = execSync(
-      'powershell -NoProfile -Command "Get-CimInstance Win32_Process | Select-Object ProcessId,ParentProcessId,CommandLine | ConvertTo-Json -Compress"',
-      { encoding: "utf-8", stdio: "pipe", timeout: 10000 }
-    );
-    const raw = JSON.parse(output) as
-      | { ProcessId: number; ParentProcessId: number; CommandLine: string | null }[]
-      | { ProcessId: number; ParentProcessId: number; CommandLine: string | null };
-    const processes = Array.isArray(raw) ? raw : [raw];
-    const tree: ProcessTree = new Map();
-    for (const proc of processes) {
-      if (proc.ProcessId == null || proc.ParentProcessId == null) continue;
-      const entry: ProcessEntry = {
-        pid: String(proc.ProcessId),
-        ppid: String(proc.ParentProcessId),
-        command: proc.CommandLine ?? "",
-      };
-      const siblings = tree.get(entry.ppid) ?? [];
-      siblings.push(entry);
-      tree.set(entry.ppid, siblings);
-    }
-    return tree;
+    const output = execSync("wmic process get CommandLine,ParentProcessId,ProcessId /format:csv", {
+      encoding: "utf-8",
+      stdio: "pipe",
+      timeout: 10000,
+    });
+    return parseWmicCsv(output);
   } catch {
     return new Map();
   }
+}
+
+function parseWmicCsv(output: string): ProcessTree {
+  const tree: ProcessTree = new Map();
+  const lines = output.replace(/\r/g, "").trim().split("\n").filter(Boolean);
+  if (lines.length < 2) return tree;
+
+  const header = lines[0]!.split(",").map((h) => h.trim().toLowerCase());
+  const cmdIdx = header.indexOf("commandline");
+  const ppidIdx = header.indexOf("parentprocessid");
+  const pidIdx = header.indexOf("processid");
+  if (cmdIdx < 0 || ppidIdx < 0 || pidIdx < 0) return tree;
+
+  const colCount = header.length;
+
+  for (let i = 1; i < lines.length; i++) {
+    const line = lines[i]!;
+    const tailCols: string[] = [];
+    let remaining = line;
+
+    for (let c = colCount - 1; c > cmdIdx; c--) {
+      const lastComma = remaining.lastIndexOf(",");
+      if (lastComma < 0) break;
+      tailCols.unshift(remaining.slice(lastComma + 1).trim());
+      remaining = remaining.slice(0, lastComma);
+    }
+
+    if (tailCols.length < colCount - cmdIdx - 1) continue;
+
+    const headCols = remaining.split(",", cmdIdx);
+    const command = remaining.slice(headCols.join(",").length + (cmdIdx > 0 ? 1 : 0));
+
+    const allCols = [...headCols, command, ...tailCols];
+    const pid = allCols[pidIdx]?.trim();
+    const ppid = allCols[ppidIdx]?.trim();
+    if (!pid || !ppid) continue;
+
+    const entry: ProcessEntry = { pid, ppid, command: command.trim() };
+    const siblings = tree.get(entry.ppid) ?? [];
+    siblings.push(entry);
+    tree.set(entry.ppid, siblings);
+  }
+  return tree;
 }
 
 function parseProcessLines(output: string, pattern: RegExp): ProcessTree {
@@ -182,6 +210,7 @@ export function isAgentIdleByProcess(
 
 export interface AgentScanOutput {
   panes: AgentPaneInfo[];
+  allPaneTargets: Set<string>;
   tree: ProcessTree;
 }
 
@@ -233,27 +262,31 @@ export function scanAgentPanes(): AgentScanOutput {
 
     const tree = buildProcessTree();
 
-    const panes: AgentPaneInfo[] = output
+    const allLines = output
       .replace(/\r/g, "")
       .trim()
       .split("\n")
-      .filter((line) => line.length > 0)
-      .map((line: string): AgentPaneInfo | null => {
-        const parts = line.split("|");
-        if (parts.length < 4) return null;
-        const target = parts[0]!;
-        const panePid = parts[parts.length - 1]!;
-        const cwd = parts[parts.length - 2]!;
-        const paneTitle = parts.slice(1, parts.length - 2).join("|");
-        const agentName = findAgentDescendant(panePid, tree);
-        if (!agentName) return null;
-        return { target, paneTitle, cwd, panePid, agentName };
-      })
-      .filter((pane): pane is AgentPaneInfo => pane !== null);
+      .filter((line) => line.length > 0);
 
-    return { panes, tree };
+    const allPaneTargets = new Set<string>();
+    const panes: AgentPaneInfo[] = [];
+
+    for (const line of allLines) {
+      const parts = line.split("|");
+      if (parts.length < 4) continue;
+      const target = parts[0]!;
+      allPaneTargets.add(target);
+      const panePid = parts[parts.length - 1]!;
+      const cwd = parts[parts.length - 2]!;
+      const paneTitle = parts.slice(1, parts.length - 2).join("|");
+      const agentName = findAgentDescendant(panePid, tree);
+      if (!agentName) continue;
+      panes.push({ target, paneTitle, cwd, panePid, agentName });
+    }
+
+    return { panes, allPaneTargets, tree };
   } catch {
-    return { panes: [], tree: new Map() };
+    return { panes: [], allPaneTargets: new Set(), tree: new Map() };
   }
 }
 
@@ -285,13 +318,11 @@ export function isAgentAliveInPane(target: string, tree?: ProcessTree): boolean 
 }
 
 export function isPaneAlive(target: string): boolean {
-  const sessionName = target.split(":")[0];
-  if (!sessionName) return false;
   try {
-    execSync(`${getTmuxBinary()} has-session -t ${escapeShellArg(sessionName)}`, {
-      stdio: "pipe",
-      timeout: 3000,
-    });
+    execSync(
+      `${getTmuxBinary()} display-message -t ${escapeShellArg(target)} -p ${escapeShellArg("#{pane_id}")}`,
+      { stdio: "pipe", timeout: 3000 }
+    );
     return true;
   } catch {
     return false;

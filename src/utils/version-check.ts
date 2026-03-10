@@ -83,10 +83,8 @@ async function runUpdateInline(): Promise<
   const cmd =
     pm === PackageManager.Yarn ? `yarn global add ${pkg}` : `${pm} install -g ${pkg}@latest`;
 
-  const [bin, ...args] = cmd.split(" ");
-
   return new Promise((resolve) => {
-    const child = spawn(bin!, args, { stdio: "pipe", shell: true });
+    const child = spawn(cmd, { stdio: "pipe", shell: true });
     const chunks: Buffer[] = [];
 
     child.stderr?.on("data", (chunk: Buffer) => chunks.push(chunk));
@@ -117,16 +115,31 @@ export async function promptUpdateOrContinue(info: UpdateInfo): Promise<void> {
     return;
   }
 
+  p.log.warn(
+    t("versionCheck.updateAvailable", {
+      current: info.currentVersion,
+      latest: info.latestVersion,
+    })
+  );
+
+  const shouldUpdate = await p.confirm({
+    message: t("versionCheck.updateConfirm"),
+  });
+
+  if (p.isCancel(shouldUpdate) || !shouldUpdate) {
+    return;
+  }
+
   const s = p.spinner();
   s.start(`${versionRange} — ${t("versionCheck.updating")}`);
 
   const result = await runUpdateInline();
 
   if (result.ok) {
-    s.stop(`✅ v${info.latestVersion} ${t("versionCheck.ready")}`);
+    s.stop(`v${info.latestVersion} ${t("versionCheck.ready")}`);
     await respawnSelf();
   } else {
-    s.stop("❌");
+    s.stop("");
     if (result.error) {
       p.log.error(result.error);
     }

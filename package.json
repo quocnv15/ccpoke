@@ -1,6 +1,6 @@
 {
   "name": "ccpoke",
-  "version": "1.6.31",
+  "version": "1.7.4",
   "description": "Your AI agent pokes you when it's done — zero-config, one command: npx -y ccpoke",
   "type": "module",
   "packageManager": "pnpm@10.28.2",
@@ -36,6 +36,8 @@
   },
   "files": [
     "dist",
+    "hooks",
+    "ccpoke-lock.json",
     "LICENSE",
     "README.md",
     "README.en.md"
@@ -56,6 +58,8 @@
     "lint:fix": "eslint src/ --fix",
     "format": "prettier --write 'src/**/*.ts'",
     "format:check": "prettier --check 'src/**/*.ts'",
+    "hash:update": "tsx scripts/update-hook-hashes.ts",
+    "hash:check": "tsx scripts/check-hook-hashes.ts",
     "prepare": "husky"
   },
   "lint-staged": {
@@ -67,6 +71,7 @@
   "dependencies": {
     "@clack/prompts": "^1.0.1",
     "@slack/web-api": "^7.14.1",
+    "adm-zip": "^0.5.16",
     "better-sqlite3": "^12.6.2",
     "cloudflared": "^0.7.1",
     "discord.js": "^14.25.1",
@@ -77,6 +82,7 @@
   "devDependencies": {
     "@eslint/js": "^10.0.1",
     "@ianvs/prettier-plugin-sort-imports": "^4.7.1",
+    "@types/adm-zip": "^0.5.7",
     "@types/better-sqlite3": "^7.6.13",
     "@types/express": "^5.0.0",
     "@types/node": "^22.13.4",
