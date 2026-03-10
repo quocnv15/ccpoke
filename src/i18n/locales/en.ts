@@ -225,7 +225,7 @@ export const en: TranslationKeys = {
   },
   tmux: {
     notAvailable: "tmux not installed — 2-way chat disabled, notifications still work",
-    scanComplete: "tmux: found {count} Claude Code session(s)",
+    scanComplete: "tmux: found {count} session(s)",
     sessionRegistered: "Session registered: {sessionId} → {target} ({project})",
     sessionDiscovered: "Session discovered: {target} ({project})",
     sessionLost: "Session lost: {target} ({project})",
@@ -237,7 +237,8 @@ export const en: TranslationKeys = {
   chat: {
     placeholder: "Message to Claude...",
     replyHint: "Type your message below ↓",
-    directMessageHint: "Use /sessions → tap a session → 💬 Chat to send messages.",
+    directMessageHint:
+      "Direct messages are not supported. Use the 💬 Chat button on a notification or in /sessions.",
     sessionExpired: "Session expired or closed",
     sessionNotFound: "Session not found",
     tmuxDead: "tmux session disconnected",

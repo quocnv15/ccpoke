@@ -222,7 +222,7 @@ export const zh: TranslationKeys = {
   },
   tmux: {
     notAvailable: "未安装 tmux — 双向聊天已禁用，通知仍正常工作",
-    scanComplete: "tmux: 找到 {count} 个 Claude Code 会话",
+    scanComplete: "tmux: 找到 {count} 个会话",
     sessionRegistered: "已注册会话: {sessionId} → {target} ({project})",
     sessionDiscovered: "发现会话: {target} ({project})",
     sessionLost: "失去会话: {target} ({project})",
@@ -234,7 +234,7 @@ export const zh: TranslationKeys = {
   chat: {
     placeholder: "给 Claude 发消息...",
     replyHint: "在下方输入消息 ↓",
-    directMessageHint: "使用 /sessions → 选择会话 → 💬 Chat 发送消息。",
+    directMessageHint: "不支持直接发消息。请使用通知或 /sessions 中的 💬 Chat 按钮。",
     sessionExpired: "会话已过期或关闭",
     sessionNotFound: "未找到会话",
     tmuxDead: "tmux 会话已断开",

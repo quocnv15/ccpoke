@@ -225,7 +225,7 @@ export const vi: TranslationKeys = {
   },
   tmux: {
     notAvailable: "Chưa cài tmux — chat 2 chiều tắt, notification vẫn hoạt động",
-    scanComplete: "tmux: tìm thấy {count} Claude Code session(s)",
+    scanComplete: "tmux: tìm thấy {count} session(s)",
     sessionRegistered: "Đã đăng ký session: {sessionId} → {target} ({project})",
     sessionDiscovered: "Phát hiện session: {target} ({project})",
     sessionLost: "Mất session: {target} ({project})",
@@ -237,7 +237,8 @@ export const vi: TranslationKeys = {
   chat: {
     placeholder: "Nhắn cho Claude...",
     replyHint: "Nhập tin nhắn bên dưới ↓",
-    directMessageHint: "Dùng /sessions → chọn session → 💬 Chat để gửi tin nhắn.",
+    directMessageHint:
+      "Không thể nhắn trực tiếp. Hãy dùng nút 💬 Chat trên thông báo hoặc trong /sessions.",
     sessionExpired: "Session đã hết hạn hoặc đóng",
     sessionNotFound: "Không tìm thấy session",
     tmuxDead: "tmux session đã ngắt kết nối",
