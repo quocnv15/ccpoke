@@ -90,6 +90,7 @@ Implements the **Adapter Pattern** for multi-channel support.
 | **telegram/session-list.ts** | 60 | `/sessions` command formatting with state emojis and Chat buttons |
 | **telegram/prompt-handler.ts** | 163 | Forwards elicitation_dialog and idle_prompt events with force_reply |
 | **telegram/permission-request-handler.ts** | 192 | Forward tool-use Allow/Deny decisions to Telegram inline keyboard |
+| **telegram/permission-tui-injector.ts** | - | Shared keystroke injection for permission dialogs (allow/deny + ExitPlanMode plan options) |
 | **telegram/ask-question-handler.ts** | 377 | Forward AskUserQuestion to Telegram with multi-step inline keyboards |
 | **telegram/ask-question-keyboard-builder.ts** | - | Build dynamic inline keyboards for question responses |
 | **telegram/ask-question-tui-injector.ts** | - | Inject keystroke answers into terminal UI |
