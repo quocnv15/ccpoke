@@ -6,6 +6,7 @@ import { AgentHandler } from "../agent/agent-handler.js";
 import { AgentName } from "../agent/types.js";
 import { t } from "../i18n/index.js";
 import { ApiRoute, isWindows, MINI_APP_BASE_URL } from "../utils/constants.js";
+import { eventCollector } from "../utils/event-collector.js";
 import { logger } from "../utils/log.js";
 import { responseStore } from "../utils/response-store.js";
 import type { TunnelManager } from "../utils/tunnel.js";
@@ -117,6 +118,7 @@ export class ApiServer {
 
       const agentName = req.query.agent ? `${req.query.agent}` : AgentName.ClaudeCode;
       logger.debug(`[API] ${ApiRoute.HookStop} accepted agent=${agentName}`);
+      eventCollector.collect("hook-stop", req.body, agentName);
 
       setImmediate(() => {
         this.handler?.handleStopEvent(agentName, req.body).catch((err: unknown) => {
@@ -138,6 +140,7 @@ export class ApiServer {
       }
 
       logger.debug(`[API] ${ApiRoute.HookSessionStart} accepted`);
+      eventCollector.collect("hook-session-start", req.body);
       setImmediate(() => {
         this.handler?.handleSessionStart(req.body).catch((err: unknown) => {
           logger.error({ err }, t("hook.sessionStartFailed"));
@@ -158,6 +161,7 @@ export class ApiServer {
       }
 
       logger.debug(`[API] ${ApiRoute.HookNotification} accepted`);
+      eventCollector.collect("hook-notification", req.body);
       setImmediate(() => {
         this.handler?.handleNotification(req.body).catch((err: unknown) => {
           logger.error({ err }, t("hook.notificationHookFailed"));
@@ -178,6 +182,7 @@ export class ApiServer {
       }
 
       logger.debug(`[API] ${ApiRoute.HookAskUserQuestion} accepted`);
+      eventCollector.collect("hook-ask-user-question", req.body);
       const agentName = typeof req.query.agent === "string" ? req.query.agent : undefined;
       setImmediate(() => {
         this.handler
@@ -201,6 +206,7 @@ export class ApiServer {
       }
 
       logger.debug(`[API] ${ApiRoute.HookPermissionRequest} accepted`);
+      eventCollector.collect("hook-permission-request", req.body);
       setImmediate(() => {
         this.handler?.handlePermissionRequest(req.body).catch((err: unknown) => {
           logger.error({ err }, t("hook.permissionRequestFailed"));
