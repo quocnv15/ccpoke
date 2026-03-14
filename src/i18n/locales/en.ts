@@ -117,6 +117,16 @@ export const en: TranslationKeys = {
     slackChannelNotMember:
       "Bot is not in this channel. Invite it first: /invite @{name} in the channel",
     slackChannelVerified: "✓ Bot can post to this channel",
+    tunnelMessage: "Tunnel provider (exposes local server to internet)",
+    tunnelCustomUrlMessage: "Enter your public HTTPS URL",
+    tunnelCustomUrlPlaceholder: "https://your-domain.com",
+    ngrokAuthtokenMessage:
+      "Enter your ngrok authtoken (get it at https://dashboard.ngrok.com/get-started/your-authtoken)",
+    ngrokAuthtokenPlaceholder: "2abc...xyz",
+    ngrokAuthtokenRequired: "ngrok authtoken is required",
+    ngrokVerifying: "Verifying ngrok authtoken…",
+    ngrokVerified: "ngrok authtoken verified",
+    ngrokVerifyFailed: "ngrok authtoken verification failed — check your token",
   },
 
   uninstall: {
@@ -195,6 +205,15 @@ export const en: TranslationKeys = {
     retrying: "tunnel retry {attempt}/{max} in {seconds}s...",
     attemptFailed: "tunnel attempt {attempt} failed: {error}",
     autoRestart: "tunnel exited unexpectedly, restarting...",
+    disabled: "tunnel disabled",
+    usingProvider: "using tunnel provider: {provider}",
+    invalidTunnelType: "invalid tunnel type: {type}",
+    customUrlMustBeHttps: "custom URL must use HTTPS",
+    customUrlInvalid: "custom URL must start with https://",
+    ngrokAuthtokenRequired: "ngrok authtoken is required",
+    ngrokNoUrl: "ngrok connected but returned no URL",
+    ngrokNoAutoRestart: "ngrok does not support auto-restart — restart ccpoke if tunnel drops",
+    ngrokCloseFailed: "failed to close ngrok listener",
   },
 
   config: {

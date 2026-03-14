@@ -117,6 +117,16 @@ export const vi: TranslationKeys = {
     slackChannelNotMember:
       "Bot chưa được invite vào channel. Hãy gõ /invite @{name} trong channel trước",
     slackChannelVerified: "✓ Bot có thể gửi tin vào channel này",
+    tunnelMessage: "Nhà cung cấp tunnel (phơi server local ra internet)",
+    tunnelCustomUrlMessage: "Nhập URL HTTPS công khai",
+    tunnelCustomUrlPlaceholder: "https://your-domain.com",
+    ngrokAuthtokenMessage:
+      "Nhập ngrok authtoken (lấy tại https://dashboard.ngrok.com/get-started/your-authtoken)",
+    ngrokAuthtokenPlaceholder: "2abc...xyz",
+    ngrokAuthtokenRequired: "ngrok authtoken là bắt buộc",
+    ngrokVerifying: "Đang xác minh ngrok authtoken…",
+    ngrokVerified: "Xác minh ngrok authtoken thành công",
+    ngrokVerifyFailed: "Xác minh ngrok authtoken thất bại — kiểm tra lại token",
   },
 
   uninstall: {
@@ -195,6 +205,15 @@ export const vi: TranslationKeys = {
     retrying: "tunnel thử lại {attempt}/{max} sau {seconds}s...",
     attemptFailed: "tunnel lần {attempt} thất bại: {error}",
     autoRestart: "tunnel thoát bất ngờ, đang khởi động lại...",
+    disabled: "tunnel đã tắt",
+    usingProvider: "đang dùng tunnel: {provider}",
+    invalidTunnelType: "loại tunnel không hợp lệ: {type}",
+    customUrlMustBeHttps: "URL tùy chỉnh phải dùng HTTPS",
+    customUrlInvalid: "URL tùy chỉnh phải bắt đầu bằng https://",
+    ngrokAuthtokenRequired: "ngrok authtoken là bắt buộc",
+    ngrokNoUrl: "ngrok đã kết nối nhưng không trả về URL",
+    ngrokNoAutoRestart: "ngrok không hỗ trợ tự khởi động lại — khởi động lại ccpoke nếu tunnel mất",
+    ngrokCloseFailed: "đóng ngrok listener thất bại",
   },
 
   config: {

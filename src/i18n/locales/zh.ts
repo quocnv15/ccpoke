@@ -114,6 +114,16 @@ export const zh: TranslationKeys = {
     slackVerifyingChannel: "正在验证 bot 是否在频道中...",
     slackChannelNotMember: "Bot 不在此频道中。请先在频道中执行 /invite @{name}",
     slackChannelVerified: "✓ Bot 可以发送消息到此频道",
+    tunnelMessage: "隧道提供商（将本地服务器暴露到互联网）",
+    tunnelCustomUrlMessage: "输入您的公共 HTTPS URL",
+    tunnelCustomUrlPlaceholder: "https://your-domain.com",
+    ngrokAuthtokenMessage:
+      "输入 ngrok authtoken（获取地址：https://dashboard.ngrok.com/get-started/your-authtoken）",
+    ngrokAuthtokenPlaceholder: "2abc...xyz",
+    ngrokAuthtokenRequired: "ngrok authtoken 是必填项",
+    ngrokVerifying: "正在验证 ngrok authtoken…",
+    ngrokVerified: "ngrok authtoken 验证成功",
+    ngrokVerifyFailed: "ngrok authtoken 验证失败 — 请检查您的 token",
   },
 
   uninstall: {
@@ -192,6 +202,15 @@ export const zh: TranslationKeys = {
     retrying: "隧道重试 {attempt}/{max}，{seconds}秒后...",
     attemptFailed: "隧道第 {attempt} 次尝试失败: {error}",
     autoRestart: "隧道意外退出，正在重新启动...",
+    disabled: "隧道已禁用",
+    usingProvider: "使用隧道提供商: {provider}",
+    invalidTunnelType: "无效的隧道类型: {type}",
+    customUrlMustBeHttps: "自定义 URL 必须使用 HTTPS",
+    customUrlInvalid: "自定义 URL 必须以 https:// 开头",
+    ngrokAuthtokenRequired: "ngrok authtoken 是必填项",
+    ngrokNoUrl: "ngrok 已连接但未返回 URL",
+    ngrokNoAutoRestart: "ngrok 不支持自动重启 — 如果隧道断开请重启 ccpoke",
+    ngrokCloseFailed: "关闭 ngrok listener 失败",
   },
 
   config: {

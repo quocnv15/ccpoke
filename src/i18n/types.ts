@@ -107,6 +107,15 @@ export interface TranslationKeys {
     slackVerifyingChannel: string;
     slackChannelNotMember: string;
     slackChannelVerified: string;
+    tunnelMessage: string;
+    tunnelCustomUrlMessage: string;
+    tunnelCustomUrlPlaceholder: string;
+    ngrokAuthtokenMessage: string;
+    ngrokAuthtokenPlaceholder: string;
+    ngrokAuthtokenRequired: string;
+    ngrokVerifying: string;
+    ngrokVerified: string;
+    ngrokVerifyFailed: string;
   };
   uninstall: {
     intro: string;
@@ -180,6 +189,15 @@ export interface TranslationKeys {
     retrying: string;
     attemptFailed: string;
     autoRestart: string;
+    disabled: string;
+    usingProvider: string;
+    invalidTunnelType: string;
+    customUrlMustBeHttps: string;
+    customUrlInvalid: string;
+    ngrokAuthtokenRequired: string;
+    ngrokNoUrl: string;
+    ngrokNoAutoRestart: string;
+    ngrokCloseFailed: string;
   };
   config: {
     notFound: string;
