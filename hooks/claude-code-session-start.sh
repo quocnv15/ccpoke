@@ -11,7 +11,7 @@ CWD=$(echo "$INPUT" | grep -o '"cwd":"[^"]*"' | head -1 | cut -d'"' -f4)
 
 ccpoke_detect_tmux
 
-PAYLOAD=$(printf '{"session_id":"%s","cwd":"%s","tmux_target":"%s"}' \
-  "$(ccpoke_json_escape "$SESSION_ID")" "$(ccpoke_json_escape "$CWD")" "$(ccpoke_json_escape "$CCPOKE_TMUX_TARGET")")
+PAYLOAD=$(printf '{"session_id":"%s","cwd":"%s","pane_id":"%s"}' \
+  "$(ccpoke_json_escape "$SESSION_ID")" "$(ccpoke_json_escape "$CWD")" "$(ccpoke_json_escape "$CCPOKE_PANE_ID")")
 
 ccpoke_post "/hook/session-start" "$PAYLOAD" 3

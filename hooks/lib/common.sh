@@ -8,17 +8,16 @@ CCPOKE_ENV_FILE="$HOME/.ccpoke/hooks/.env"
 CCPOKE_HOST="${CCPOKE_HOST:-localhost}"
 
 ccpoke_detect_tmux() {
-  CCPOKE_TMUX_TARGET=""
+  CCPOKE_PANE_ID=""
   [ -n "$TMUX_PANE" ] || return 0
-  CCPOKE_TMUX_TARGET=$(tmux display-message -t "$TMUX_PANE" \
-    -p '#{session_name}:#{window_index}.#{pane_index}' 2>/dev/null || echo "")
+  CCPOKE_PANE_ID="$TMUX_PANE"
 }
 
 ccpoke_inject_tmux() {
   local json="$1"
-  if [ -n "$CCPOKE_TMUX_TARGET" ] && \
-     echo "$CCPOKE_TMUX_TARGET" | grep -qE '^[a-zA-Z0-9_.:/@ -]+$'; then
-    echo "$json" | sed 's/}$/,"tmux_target":"'"$CCPOKE_TMUX_TARGET"'"}/'
+  if [ -n "$CCPOKE_PANE_ID" ] && \
+     echo "$CCPOKE_PANE_ID" | grep -qE '^%[0-9]+$'; then
+    echo "$json" | sed 's/}$/,"pane_id":"'"$CCPOKE_PANE_ID"'"}/'
   else
     echo "$json"
   fi

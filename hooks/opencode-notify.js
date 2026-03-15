@@ -17,20 +17,7 @@ export default async function ({ $, client, directory, worktree }) {
   const secret = cfg.hook_secret;
   const agentParam = "?agent=opencode";
 
-  let cachedTmuxTarget = null;
-
-  async function detectTmuxTarget() {
-    if (cachedTmuxTarget !== null) return cachedTmuxTarget;
-    try {
-      const result = await $`tmux display-message -p '#{session_name}:#{window_index}.#{pane_index}'`
-        .nothrow()
-        .quiet();
-      cachedTmuxTarget = result.stdout?.toString().trim() || "";
-    } catch {
-      cachedTmuxTarget = "";
-    }
-    return cachedTmuxTarget;
-  }
+  const paneId = process.env.TMUX_PANE || "";
 
   async function fetchSessionContext(sessionID) {
     if (!sessionID || !client) return { summary: "", model: "" };
@@ -60,12 +47,11 @@ export default async function ({ $, client, directory, worktree }) {
     event: async ({ event }) => {
       if (event.type === "question.asked") {
         const props = event.properties || {};
-        const tmuxTarget = await detectTmuxTarget();
         const payload = JSON.stringify({
           session_id: props.sessionID || "",
           tool_input: { questions: props.questions || [] },
           cwd: worktree || directory,
-          tmux_target: tmuxTarget,
+          pane_id: paneId,
         });
         try {
           await $`echo ${payload} | curl -s -X POST "http://${ccpokeHost}:${port}/hook/ask-user-question${agentParam}" -H "Content-Type: application/json" -H "X-CCPoke-Secret: ${secret}" --data-binary @- --max-time 5`
@@ -77,7 +63,6 @@ export default async function ({ $, client, directory, worktree }) {
 
       if (event.type === "permission.asked") {
         const props = event.properties || {};
-        const tmuxTarget = await detectTmuxTarget();
         const payload = JSON.stringify({
           session_id: props.sessionID || "",
           tool_name: props.permission || "unknown",
@@ -86,7 +71,7 @@ export default async function ({ $, client, directory, worktree }) {
             metadata: props.metadata || {},
           },
           cwd: worktree || directory,
-          tmux_target: tmuxTarget,
+          pane_id: paneId,
         });
         try {
           await $`echo ${payload} | curl -s -X POST "http://${ccpokeHost}:${port}/hook/permission-request${agentParam}" -H "Content-Type: application/json" -H "X-CCPoke-Secret: ${secret}" --data-binary @- --max-time 5`
@@ -100,14 +85,13 @@ export default async function ({ $, client, directory, worktree }) {
       const sessionID = event.properties?.sessionID || "";
       const cwd = worktree || directory;
       const ctx = await fetchSessionContext(sessionID);
-      const tmuxTarget = await detectTmuxTarget();
       const payload = JSON.stringify({
         session_id: sessionID,
         prompt_response: ctx.summary,
         cwd,
         model: ctx.model,
         event_type: event.type,
-        tmux_target: tmuxTarget,
+        pane_id: paneId,
       });
       try {
         await $`echo ${payload} | curl -s -X POST "http://${ccpokeHost}:${port}/hook/stop${agentParam}" -H "Content-Type: application/json" -H "X-CCPoke-Secret: ${secret}" --data-binary @- --max-time 5`
