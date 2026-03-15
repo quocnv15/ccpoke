@@ -33,9 +33,9 @@ export function parsePermissionCallback(action: string): PermissionInjectionResu
 export class PermissionTuiInjector {
   constructor(private tmuxBridge: TmuxBridge) {}
 
-  extractPlanOptions(tmuxTarget: string): string[] {
+  extractPlanOptions(paneId: string): string[] {
     try {
-      const content = this.tmuxBridge.capturePane(tmuxTarget, 20);
+      const content = this.tmuxBridge.capturePane(paneId, 20);
       const options: string[] = [];
       for (const line of content.split("\n")) {
         const match = PLAN_OPTION_PATTERN.exec(line);
@@ -48,24 +48,24 @@ export class PermissionTuiInjector {
     return [...FALLBACK_LABELS];
   }
 
-  async inject(tmuxTarget: string, result: PermissionInjectionResult): Promise<void> {
-    const ready = await this.tmuxBridge.waitForTuiReady(tmuxTarget, 5000);
+  async inject(paneId: string, result: PermissionInjectionResult): Promise<void> {
+    const ready = await this.tmuxBridge.waitForTuiReady(paneId, 5000);
     if (!ready) throw new Error("TUI not ready");
 
     if (result.action === "plan-option") {
-      await this.injectOptionSelect(tmuxTarget, result.optionIndex ?? 0);
+      await this.injectOptionSelect(paneId, result.optionIndex ?? 0);
     } else {
-      this.tmuxBridge.sendKeys(tmuxTarget, result.action === "allow" ? "y" : "n", ["Enter"]);
+      this.tmuxBridge.sendKeys(paneId, result.action === "allow" ? "y" : "n", ["Enter"]);
     }
   }
 
-  private async injectOptionSelect(tmuxTarget: string, optionIndex: number): Promise<void> {
+  private async injectOptionSelect(paneId: string, optionIndex: number): Promise<void> {
     for (let i = 0; i < optionIndex; i++) {
-      this.tmuxBridge.sendSpecialKey(tmuxTarget, "Down");
+      this.tmuxBridge.sendSpecialKey(paneId, "Down");
       await this.delay(KEY_DELAY_MS);
     }
     await this.delay(KEY_DELAY_MS);
-    this.tmuxBridge.sendSpecialKey(tmuxTarget, "Enter");
+    this.tmuxBridge.sendSpecialKey(paneId, "Enter");
   }
 
   private delay(ms: number): Promise<void> {

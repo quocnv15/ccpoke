@@ -12,21 +12,24 @@ import type { AgentRegistry } from "../../agent/agent-registry.js";
 import { AGENT_DISPLAY_NAMES, AgentName } from "../../agent/types.js";
 import { ConfigManager, type Config } from "../../config-manager.js";
 import { getTranslations, t } from "../../i18n/index.js";
-import type { SessionMap, TmuxSession } from "../../tmux/session-map.js";
-import type { SessionStateManager } from "../../tmux/session-state.js";
+import { PaneState, type PaneRegistry } from "../../tmux/pane-registry.js";
+import type { PaneStateManager } from "../../tmux/pane-state-manager.js";
 import type { TmuxBridge } from "../../tmux/tmux-bridge.js";
+import { checkPaneHealth } from "../../tmux/tmux-scanner.js";
 import { logger } from "../../utils/log.js";
 import { truncateMarkdown } from "../../utils/markdown.js";
 import { formatModelName } from "../../utils/stats-format.js";
 import { autoAcceptStartupPrompts, launchAgent } from "../agent-launcher.js";
+import { buildSessionLabel } from "../session-label.js";
 import type { ChannelDeps, NotificationChannel, NotificationData } from "../types.js";
 import { AskQuestionHandler } from "./ask-question-handler.js";
+import { buildTargetCallback, parseTargetCallback } from "./callback-parser.js";
 import { escapeMarkdownV2, markdownToTelegramV2 } from "./escape-markdown.js";
+import { formatPaneList } from "./pane-list.js";
 import { PendingReplyStore } from "./pending-reply-store.js";
 import { PermissionRequestHandler } from "./permission-request-handler.js";
 import { formatProjectList } from "./project-list.js";
 import { PromptHandler } from "./prompt-handler.js";
-import { formatSessionList } from "./session-list.js";
 import { padMaxWidth, sendTelegramMessage } from "./telegram-sender.js";
 
 export class TelegramChannel implements NotificationChannel {
@@ -41,8 +44,8 @@ export class TelegramChannel implements NotificationChannel {
   private startedAt = 0;
   private pendingReplyStore = new PendingReplyStore();
   private instanceId = randomUUID();
-  private sessionMap: SessionMap | null;
-  private stateManager: SessionStateManager | null;
+  private paneRegistry: PaneRegistry | null;
+  private paneStateManager: PaneStateManager | null;
   private tmuxBridge: TmuxBridge | null;
   private registry: AgentRegistry | null;
   private promptHandler: PromptHandler | null = null;
@@ -52,8 +55,8 @@ export class TelegramChannel implements NotificationChannel {
 
   constructor(cfg: Config, deps?: ChannelDeps) {
     this.cfg = cfg;
-    this.sessionMap = deps?.sessionMap ?? null;
-    this.stateManager = deps?.stateManager ?? null;
+    this.paneRegistry = deps?.paneRegistry ?? null;
+    this.paneStateManager = deps?.paneStateManager ?? null;
     this.tmuxBridge = deps?.tmuxBridge ?? null;
     this.registry = deps?.registry ?? null;
     this.bot = new TelegramBot(cfg.telegram_bot_token, {
@@ -75,26 +78,27 @@ export class TelegramChannel implements NotificationChannel {
       this.bot.deleteMessage(chatId, messageId).catch(() => {});
     });
 
-    if (this.sessionMap && this.tmuxBridge && this.registry) {
+    if (this.paneRegistry && this.tmuxBridge && this.registry) {
       this.promptHandler = new PromptHandler(
         this.bot,
         () => this.chatId,
-        this.sessionMap,
+        this.paneRegistry,
         this.tmuxBridge,
         this.registry
       );
-      this.promptHandler.onElicitationSent = (chatId, messageId, sessionId, project) => {
-        this.pendingReplyStore.set(chatId, messageId, sessionId, project);
+      this.promptHandler.onElicitationSent = (chatId, messageId, paneId, panePid, project) => {
+        this.pendingReplyStore.set(chatId, messageId, paneId, panePid, project);
       };
       this.askQuestionHandler = new AskQuestionHandler(
         this.bot,
         () => this.chatId,
-        this.tmuxBridge
+        this.tmuxBridge,
+        this.paneRegistry
       );
       this.permissionRequestHandler = new PermissionRequestHandler(
         this.bot,
         () => this.chatId,
-        this.sessionMap,
+        this.paneRegistry,
         this.tmuxBridge
       );
     }
@@ -162,7 +166,14 @@ export class TelegramChannel implements NotificationChannel {
     const text = this.formatNotification(data);
 
     try {
-      await sendTelegramMessage(this.bot, this.chatId, text, responseUrl, data.sessionId);
+      await sendTelegramMessage(
+        this.bot,
+        this.chatId,
+        text,
+        responseUrl,
+        data.paneId,
+        data.panePid
+      );
     } catch (err: unknown) {
       logger.error({ err }, t("bot.notificationFailed"));
     }
@@ -171,7 +182,8 @@ export class TelegramChannel implements NotificationChannel {
   private formatNotification(data: NotificationData): string {
     const parts: string[] = [];
 
-    const titleLine = `📦 *${escapeMarkdownV2(data.projectName)}*`;
+    const label = buildSessionLabel(data.projectName, "", data.paneId ?? "");
+    const titleLine = `📦 *${escapeMarkdownV2(label)}*`;
     const metaLine = `🐾 ${escapeMarkdownV2(data.agentDisplayName)}`;
     parts.push(`${titleLine}\n${metaLine}`);
 
@@ -262,9 +274,13 @@ export class TelegramChannel implements NotificationChannel {
         }
 
         if (query.data?.startsWith("elicit:")) {
-          const sessionId = query.data.slice(7);
-          logger.debug(`[Elicit:callback] sessionId=${sessionId}`);
-          await this.handleElicitReplyButton(query, sessionId);
+          const parsed = parseTargetCallback(query.data, "elicit");
+          if (!parsed) {
+            await this.bot.answerCallbackQuery(query.id, { text: t("chat.sessionExpired") });
+            return;
+          }
+          logger.debug(`[Elicit:callback] paneId=${parsed.paneId}`);
+          await this.handleElicitReplyButton(query, parsed.paneId, parsed.panePid);
           return;
         }
 
@@ -284,10 +300,12 @@ export class TelegramChannel implements NotificationChannel {
         }
 
         if (query.data?.startsWith("session_chat:")) {
-          // Rewrite to chat: flow
-          const sessionId = query.data.slice(13);
-          query.data = `chat:${sessionId}`;
-          // fall through to chat: handler below
+          const parsed = parseTargetCallback(query.data, "session_chat");
+          if (!parsed) {
+            await this.bot.answerCallbackQuery(query.id, { text: t("chat.sessionExpired") });
+            return;
+          }
+          query.data = buildTargetCallback("chat", parsed.paneId, parsed.panePid);
         }
 
         if (query.data?.startsWith("session_close:")) {
@@ -317,19 +335,25 @@ export class TelegramChannel implements NotificationChannel {
 
         if (!query.data?.startsWith("chat:")) return;
 
-        const sessionId = query.data.slice(5);
-        logger.debug(`[Chat:callback] sessionId=${sessionId}`);
-
-        if (!this.sessionMap) {
+        const chatParsed = parseTargetCallback(query.data, "chat");
+        if (!chatParsed) {
           await this.bot.answerCallbackQuery(query.id, { text: t("chat.sessionExpired") });
           return;
         }
 
-        const session = this.resolveSession(sessionId);
-        if (!session) {
+        const chatHealth = checkPaneHealth(chatParsed.paneId);
+        if (chatHealth.status === "dead" || chatHealth.panePid !== chatParsed.panePid) {
           await this.bot.answerCallbackQuery(query.id, { text: t("chat.sessionExpired") });
           return;
         }
+
+        const chatSession = this.paneRegistry?.getByPaneId(chatParsed.paneId);
+        if (!chatSession) {
+          await this.bot.answerCallbackQuery(query.id, { text: t("chat.sessionExpired") });
+          return;
+        }
+
+        logger.debug(`[Chat:callback] paneId=${chatParsed.paneId} project=${chatSession.project}`);
 
         if (!query.message) {
           await this.bot.answerCallbackQuery(query.id);
@@ -339,7 +363,7 @@ export class TelegramChannel implements NotificationChannel {
         const sent = await this.bot.sendMessage(
           query.message.chat.id,
           padMaxWidth(
-            `💬 *${escapeMarkdownV2(session.project)}*\n${escapeMarkdownV2(t("chat.replyHint"))}`
+            `💬 *${escapeMarkdownV2(chatSession.project)}*\n${escapeMarkdownV2(t("chat.replyHint"))}`
           ),
           {
             parse_mode: "MarkdownV2",
@@ -347,7 +371,7 @@ export class TelegramChannel implements NotificationChannel {
             reply_markup: {
               force_reply: true,
               selective: true,
-              input_field_placeholder: `${session.project} → Claude`,
+              input_field_placeholder: `${chatSession.project} → Claude`,
             },
           }
         );
@@ -355,11 +379,12 @@ export class TelegramChannel implements NotificationChannel {
         this.pendingReplyStore.set(
           query.message.chat.id,
           sent.message_id,
-          sessionId,
-          session.project
+          chatParsed.paneId,
+          chatParsed.panePid,
+          chatSession.project
         );
         logger.debug(
-          `[Chat:pending] msgId=${sent.message_id} → sessionId=${sessionId} project=${session.project} tmuxTarget=${session.tmuxTarget}`
+          `[Chat:pending] msgId=${sent.message_id} → paneId=${chatParsed.paneId} project=${chatSession.project}`
         );
         await this.bot.answerCallbackQuery(query.id);
       } catch (err) {
@@ -426,10 +451,17 @@ export class TelegramChannel implements NotificationChannel {
 
       this.pendingReplyStore.delete(msg.chat.id, msg.reply_to_message.message_id);
       this.bot.deleteMessage(msg.chat.id, msg.reply_to_message.message_id).catch(() => {});
+
+      const health = checkPaneHealth(pending.paneId);
+      if (health.status === "dead" || health.panePid !== pending.panePid) {
+        await this.bot.sendMessage(msg.chat.id, padMaxWidth(t("chat.sessionNotFound")));
+        return;
+      }
+
       if (this.promptHandler) {
-        const injected = this.promptHandler.injectElicitationResponse(pending.sessionId, msg.text);
+        const injected = this.promptHandler.injectElicitationResponse(pending.paneId, msg.text);
         if (injected) {
-          logger.debug(`[Chat:result] elicitation injected → sessionId=${pending.sessionId}`);
+          logger.debug(`[Chat:result] elicitation injected → paneId=${pending.paneId}`);
           await this.bot.sendMessage(
             msg.chat.id,
             padMaxWidth(t("prompt.responded", { project: pending.project }))
@@ -438,44 +470,53 @@ export class TelegramChannel implements NotificationChannel {
         }
       }
 
-      if (!this.stateManager) {
+      if (!this.paneStateManager) {
         await this.bot.sendMessage(msg.chat.id, padMaxWidth(t("chat.sessionNotFound")));
         return;
       }
 
-      const result = this.stateManager.injectMessage(pending.sessionId, msg.text);
+      const result = this.paneStateManager.injectMessage(pending.paneId, msg.text);
 
       if ("sent" in result) {
-        logger.debug(`[Chat:result] sent → sessionId=${pending.sessionId}`);
+        logger.debug(`[Chat:result] sent → paneId=${pending.paneId}`);
         await this.bot.sendMessage(
           msg.chat.id,
           padMaxWidth(t("chat.sent", { project: pending.project }))
         );
       } else if ("busy" in result) {
-        logger.debug(`[Chat:result] busy → sessionId=${pending.sessionId}`);
+        logger.debug(`[Chat:result] busy → paneId=${pending.paneId}`);
         await this.bot.sendMessage(msg.chat.id, padMaxWidth(t("chat.busy")));
       } else if ("sessionNotFound" in result) {
-        logger.debug(`[Chat:result] sessionNotFound → sessionId=${pending.sessionId}`);
+        logger.debug(`[Chat:result] sessionNotFound → paneId=${pending.paneId}`);
         await this.bot.sendMessage(msg.chat.id, padMaxWidth(t("chat.sessionNotFound")));
-      } else if ("tmuxDead" in result) {
-        logger.debug(`[Chat:result] tmuxDead → sessionId=${pending.sessionId}`);
+      } else if ("paneDead" in result) {
+        logger.debug(`[Chat:result] paneDead → paneId=${pending.paneId}`);
         await this.bot.sendMessage(msg.chat.id, padMaxWidth(t("chat.tmuxDead")));
+      } else if ("noAgent" in result) {
+        logger.debug(`[Chat:result] noAgent → paneId=${pending.paneId}`);
+        await this.bot.sendMessage(msg.chat.id, padMaxWidth(t("chat.noAgent")));
       }
     });
   }
 
-  /** Handle elicitation "Reply" button — sends force_reply targeted at this specific elicitation */
   private async handleElicitReplyButton(
     query: TelegramBot.CallbackQuery,
-    sessionId: string
+    paneId: string,
+    panePid: string
   ): Promise<void> {
-    if (!this.sessionMap || !query.message) {
+    if (!this.paneRegistry || !query.message) {
       await this.bot.answerCallbackQuery(query.id, { text: t("chat.sessionExpired") });
       return;
     }
 
-    const session = this.resolveSession(sessionId);
-    if (!session) {
+    const health = checkPaneHealth(paneId);
+    if (health.status === "dead" || health.panePid !== panePid) {
+      await this.bot.answerCallbackQuery(query.id, { text: t("chat.sessionExpired") });
+      return;
+    }
+
+    const pane = this.paneRegistry.getByPaneId(paneId);
+    if (!pane) {
       await this.bot.answerCallbackQuery(query.id, { text: t("chat.sessionExpired") });
       return;
     }
@@ -483,7 +524,7 @@ export class TelegramChannel implements NotificationChannel {
     const sent = await this.bot.sendMessage(
       query.message.chat.id,
       padMaxWidth(
-        `💬 *${escapeMarkdownV2(session.project)}*\n${escapeMarkdownV2(t("prompt.elicitationReplyHint"))}`
+        `💬 *${escapeMarkdownV2(pane.project)}*\n${escapeMarkdownV2(t("prompt.elicitationReplyHint"))}`
       ),
       {
         parse_mode: "MarkdownV2",
@@ -496,49 +537,48 @@ export class TelegramChannel implements NotificationChannel {
       }
     );
 
-    this.pendingReplyStore.set(query.message.chat.id, sent.message_id, sessionId, session.project);
+    this.pendingReplyStore.set(
+      query.message.chat.id,
+      sent.message_id,
+      paneId,
+      panePid,
+      pane.project
+    );
     logger.debug(
-      `[Elicit:pending] msgId=${sent.message_id} → sessionId=${sessionId} project=${session.project}`
+      `[Elicit:pending] msgId=${sent.message_id} → paneId=${paneId} project=${pane.project}`
     );
     await this.bot.answerCallbackQuery(query.id);
-  }
-
-  private resolveSession(sessionId: string): TmuxSession | undefined {
-    if (!this.sessionMap) return undefined;
-    return this.sessionMap.getBySessionId(sessionId) ?? this.sessionMap.resolveExpired(sessionId);
   }
 
   private registerSessionsHandlers(): void {
     this.bot.onText(/\/sessions(?:\s|$)/, (msg) => {
       if (!ConfigManager.isOwner(this.cfg, msg.from?.id ?? 0)) return;
-      if (!this.sessionMap) {
+      if (!this.paneRegistry) {
         this.bot.sendMessage(msg.chat.id, padMaxWidth(t("sessions.empty"))).catch(() => {});
         return;
       }
 
-      const beforeCount = this.sessionMap.getAllActive().length;
+      const beforeCount = this.paneRegistry.getAllActive().length;
       if (this.tmuxBridge) {
-        const result = this.sessionMap.refreshFromTmux(this.tmuxBridge);
+        const result = this.paneRegistry.refreshFromTmux(this.tmuxBridge);
         logger.debug(
           `[/sessions] refresh: before=${beforeCount} after=${result.total} discovered=${result.discovered.length} removed=${result.removed.length}`
         );
       }
 
-      const sessions = this.sessionMap.getAllActive();
-      logger.debug(`[/sessions] count=${sessions.length}`);
-      for (const s of sessions) {
-        logger.debug(
-          `[/sessions:dump] id=${s.sessionId} target=${s.tmuxTarget} project=${s.project} cwd=${s.cwd}`
-        );
+      const panes = this.paneRegistry.getAllActive();
+      logger.debug(`[/sessions] count=${panes.length}`);
+      for (const p of panes) {
+        logger.debug(`[/sessions:dump] target=${p.paneId} project=${p.project} cwd=${p.cwd}`);
       }
-      const { text, replyMarkup } = formatSessionList(sessions);
+      const { text, replyMarkup } = formatPaneList(panes);
 
       const opts: TelegramBot.SendMessageOptions = { parse_mode: "MarkdownV2" };
       if (replyMarkup) opts.reply_markup = replyMarkup;
 
       this.bot.sendMessage(msg.chat.id, padMaxWidth(text), opts).catch((err) => {
         logger.error({ err }, "[/sessions] MarkdownV2 sendMessage failed, retrying plain text");
-        const plain = sessions.map((s) => `${s.project} (${s.state})`).join("\n");
+        const plain = panes.map((p) => `${p.project} (${p.state})`).join("\n");
         this.bot
           .sendMessage(msg.chat.id, padMaxWidth(plain || t("sessions.empty")))
           .catch(() => {});
@@ -624,28 +664,22 @@ export class TelegramChannel implements NotificationChannel {
     if (!this.tmuxBridge || !query.message) return;
 
     try {
-      const { paneTarget, needsTrust } = launchAgent(this.tmuxBridge, project.path, agentKey);
+      const { paneId, needsTrust } = launchAgent(this.tmuxBridge, project.path, agentKey);
 
-      this.sessionMap?.register(
-        `pre-${paneTarget.replace(/[:.]/g, "-")}`,
-        paneTarget,
-        project.name,
-        project.path,
-        "",
-        agentKey as AgentName
-      );
+      this.paneRegistry?.register(paneId, project.name, project.path, "", agentKey as AgentName);
+      this.paneRegistry?.updateState(paneId, PaneState.Launching);
 
       if (needsTrust) {
         autoAcceptStartupPrompts(
           this.tmuxBridge,
-          paneTarget,
+          paneId,
           agentKey,
           () => {},
           () => {}
         );
       }
 
-      logger.info(`[Projects] started ${agentKey} in ${paneTarget} for ${project.name}`);
+      logger.info(`[Projects] started ${agentKey} in ${paneId} for ${project.name}`);
       await this.bot.sendMessage(
         query.message!.chat.id,
         padMaxWidth(t("projects.started", { project: project.name }))
@@ -659,28 +693,38 @@ export class TelegramChannel implements NotificationChannel {
     }
   }
 
-  /** Session sub-menu: Chat / Close */
   private async handleSessionCallback(query: TelegramBot.CallbackQuery): Promise<void> {
-    const sessionId = query.data!.slice(8);
-    if (!this.sessionMap || !query.message) {
+    if (!this.paneRegistry || !query.message) {
       await this.bot.answerCallbackQuery(query.id, { text: t("chat.sessionExpired") });
       return;
     }
 
-    const session = this.resolveSession(sessionId);
-    if (!session) {
-      logger.debug(`[Session:callback] NOT FOUND sessionId=${sessionId}`);
+    const parsed = parseTargetCallback(query.data!, "session");
+    if (!parsed) {
       await this.bot.answerCallbackQuery(query.id, { text: t("chat.sessionExpired") });
       return;
     }
-    logger.debug(
-      `[Session:callback] resolved id=${sessionId} → target=${session.tmuxTarget} project=${session.project}`
-    );
+
+    const health = checkPaneHealth(parsed.paneId);
+    if (health.status === "dead" || health.panePid !== parsed.panePid) {
+      await this.bot.answerCallbackQuery(query.id, { text: t("chat.sessionExpired") });
+      return;
+    }
+
+    const pane = this.paneRegistry.getByPaneId(parsed.paneId);
+    if (!pane) {
+      logger.debug(`[Session:callback] NOT FOUND paneId=${parsed.paneId}`);
+      await this.bot.answerCallbackQuery(query.id, { text: t("chat.sessionExpired") });
+      return;
+    }
+    logger.debug(`[Session:callback] resolved target=${parsed.paneId} project=${pane.project}`);
+
+    const livePid = health.panePid;
 
     await this.bot.answerCallbackQuery(query.id);
     await this.bot.sendMessage(
       query.message.chat.id,
-      padMaxWidth(`*${escapeMarkdownV2(session.project)}*`),
+      padMaxWidth(`*${escapeMarkdownV2(pane.project)}*`),
       {
         parse_mode: "MarkdownV2",
         reply_markup: {
@@ -688,15 +732,15 @@ export class TelegramChannel implements NotificationChannel {
             [
               {
                 text: `💬 ${t("sessions.chatButton")}`,
-                callback_data: `session_chat:${sessionId}`,
+                callback_data: buildTargetCallback("session_chat", parsed.paneId, livePid),
               },
               {
                 text: `🗑 ${t("sessions.closeButton")}`,
-                callback_data: `session_close:${sessionId}`,
+                callback_data: buildTargetCallback("session_close", parsed.paneId, livePid),
               },
               {
                 text: `❌ ${t("chat.cancelButton")}`,
-                callback_data: `session_dismiss:${sessionId}`,
+                callback_data: buildTargetCallback("session_dismiss", parsed.paneId, livePid),
               },
             ],
           ],
@@ -704,22 +748,26 @@ export class TelegramChannel implements NotificationChannel {
       }
     );
   }
-  /** Send Escape to tmux pane to cancel running process */
   private async handleSessionDismiss(query: TelegramBot.CallbackQuery): Promise<void> {
-    const sessionId = query.data!.slice(16);
-    if (!this.sessionMap || !this.tmuxBridge) {
+    if (!this.paneRegistry || !this.tmuxBridge) {
       await this.bot.answerCallbackQuery(query.id, { text: t("chat.sessionExpired") });
       return;
     }
 
-    const session = this.resolveSession(sessionId);
-    if (!session?.tmuxTarget) {
+    const parsed = parseTargetCallback(query.data!, "session_dismiss");
+    if (!parsed) {
+      await this.bot.answerCallbackQuery(query.id, { text: t("chat.sessionExpired") });
+      return;
+    }
+
+    const health = checkPaneHealth(parsed.paneId);
+    if (health.status === "dead" || health.panePid !== parsed.panePid) {
       await this.bot.answerCallbackQuery(query.id, { text: t("chat.sessionExpired") });
       return;
     }
 
     try {
-      this.tmuxBridge.sendSpecialKey(session.tmuxTarget, "Escape");
+      this.tmuxBridge.sendSpecialKey(parsed.paneId, "Escape");
     } catch {
       await this.bot.answerCallbackQuery(query.id, { text: t("chat.tmuxDead") });
       return;
@@ -728,30 +776,47 @@ export class TelegramChannel implements NotificationChannel {
     await this.bot.answerCallbackQuery(query.id, { text: t("chat.cancelled") });
   }
 
-  /** Session close confirmation */
   private async handleSessionCloseConfirm(query: TelegramBot.CallbackQuery): Promise<void> {
-    const sessionId = query.data!.slice(14);
-    if (!this.sessionMap || !query.message) {
+    if (!this.paneRegistry || !query.message) {
       await this.bot.answerCallbackQuery(query.id, { text: t("chat.sessionExpired") });
       return;
     }
 
-    const session = this.resolveSession(sessionId);
-    if (!session) {
+    const parsed = parseTargetCallback(query.data!, "session_close");
+    if (!parsed) {
+      await this.bot.answerCallbackQuery(query.id, { text: t("chat.sessionExpired") });
+      return;
+    }
+
+    const health = checkPaneHealth(parsed.paneId);
+    if (health.status === "dead" || health.panePid !== parsed.panePid) {
+      await this.bot.answerCallbackQuery(query.id, { text: t("chat.sessionExpired") });
+      return;
+    }
+
+    const pane = this.paneRegistry.getByPaneId(parsed.paneId);
+    if (!pane) {
       await this.bot.answerCallbackQuery(query.id, { text: t("chat.sessionExpired") });
       return;
     }
 
     await this.bot.answerCallbackQuery(query.id);
     await this.bot.editMessageText(
-      padMaxWidth(t("sessions.confirmClose", { project: session.project })),
+      padMaxWidth(t("sessions.confirmClose", { project: pane.project })),
       {
         chat_id: query.message.chat.id,
         message_id: query.message.message_id,
         reply_markup: {
           inline_keyboard: [
             [
-              { text: `✅ ${t("sessions.yes")}`, callback_data: `session_close_yes:${sessionId}` },
+              {
+                text: `✅ ${t("sessions.yes")}`,
+                callback_data: buildTargetCallback(
+                  "session_close_yes",
+                  parsed.paneId,
+                  parsed.panePid
+                ),
+              },
               { text: `❌ ${t("sessions.no")}`, callback_data: `session_close_no:` },
             ],
           ],
@@ -760,40 +825,41 @@ export class TelegramChannel implements NotificationChannel {
     );
   }
 
-  /** Execute session close: kill tmux pane + unregister */
   private async handleSessionCloseExecute(query: TelegramBot.CallbackQuery): Promise<void> {
-    const sessionId = query.data!.slice(18);
-    if (!this.sessionMap || !query.message) {
+    if (!this.paneRegistry || !query.message) {
       await this.bot.answerCallbackQuery(query.id);
       return;
     }
 
-    const session = this.resolveSession(sessionId);
-    if (!session) {
+    const parsed = parseTargetCallback(query.data!, "session_close_yes");
+    if (!parsed) {
       await this.bot.answerCallbackQuery(query.id, { text: t("chat.sessionExpired") });
       return;
     }
 
-    if (this.tmuxBridge && session.tmuxTarget) {
+    const pane = this.paneRegistry.getByPaneId(parsed.paneId);
+    if (!pane) {
+      await this.bot.answerCallbackQuery(query.id, { text: t("chat.sessionExpired") });
+      return;
+    }
+
+    if (this.tmuxBridge) {
       try {
-        this.tmuxBridge.killPane(session.tmuxTarget);
+        this.tmuxBridge.killPane(parsed.paneId);
       } catch {
         // pane may already be dead
       }
     }
 
-    this.sessionMap.unregister(sessionId);
-    this.sessionMap.save();
-    logger.info(`[Sessions] closed session ${sessionId} (${session.project})`);
+    this.paneRegistry.unregister(parsed.paneId);
+    this.paneRegistry.save();
+    logger.info(`[Sessions] closed session ${parsed.paneId} (${pane.project})`);
 
     await this.bot.answerCallbackQuery(query.id);
-    await this.bot.editMessageText(
-      padMaxWidth(t("sessions.closed", { project: session.project })),
-      {
-        chat_id: query.message.chat.id,
-        message_id: query.message.message_id,
-      }
-    );
+    await this.bot.editMessageText(padMaxWidth(t("sessions.closed", { project: pane.project })), {
+      chat_id: query.message.chat.id,
+      message_id: query.message.message_id,
+    });
   }
 
   private patchProcessUpdate(): void {
@@ -804,8 +870,7 @@ export class TelegramChannel implements NotificationChannel {
     };
 
     const original = this.bot.processUpdate.bind(this.bot);
-    // eslint-disable-next-line @typescript-eslint/no-explicit-any
-    this.bot.processUpdate = (update: any) => {
+    this.bot.processUpdate = (update: TelegramBot.Update) => {
       const uid = update.update_id as number;
       const key = `uid:${uid}`;
       this.lastPollingActivity = Date.now();
@@ -877,10 +942,6 @@ export class TelegramChannel implements NotificationChannel {
       this.lastPollingActivity = Date.now();
       this.reconnectTimer = setTimeout(async () => {
         try {
-          const polling = (this.bot as unknown as Record<string, unknown>)._polling as
-            | { _abort?: boolean }
-            | undefined;
-          if (polling) polling._abort = true;
           await this.bot.stopPolling({ cancel: true, reason: "stale polling" });
         } catch {
           // already stopped

@@ -18,10 +18,10 @@ import { ConfigManager, type Config } from "./config-manager.js";
 import { HookEnvWriter } from "./hooks/hook-env-writer.js";
 import { t } from "./i18n/index.js";
 import { ApiServer } from "./server/api-server.js";
-import { SessionMap } from "./tmux/session-map.js";
-import { SessionStateManager } from "./tmux/session-state.js";
+import { PaneRegistry } from "./tmux/pane-registry.js";
+import { PaneStateManager } from "./tmux/pane-state-manager.js";
 import { TmuxBridge } from "./tmux/tmux-bridge.js";
-import { TmuxSessionResolver } from "./tmux/tmux-session-resolver.js";
+import { TmuxPaneResolver } from "./tmux/tmux-pane-resolver.js";
 import { TunnelManager } from "./tunnel/tunnel-manager.js";
 import { ChannelName, CliCommand, InstallMethod, refreshWindowsPath } from "./utils/constants.js";
 import { detectInstallMethod } from "./utils/install-detection.js";
@@ -95,20 +95,20 @@ async function startBot(): Promise<void> {
   const registry = createDefaultRegistry();
 
   const tmuxBridge = new TmuxBridge();
-  const sessionMap = new SessionMap();
-  const stateManager = new SessionStateManager(sessionMap, tmuxBridge, registry);
+  const paneRegistry = new PaneRegistry();
+  const paneStateManager = new PaneStateManager(paneRegistry, tmuxBridge, registry);
 
-  let chatResolver: TmuxSessionResolver | undefined;
+  let chatResolver: TmuxPaneResolver | undefined;
 
   if (tmuxBridge.isTmuxAvailable()) {
-    sessionMap.load();
-    const bootResult = sessionMap.refreshFromTmux(tmuxBridge);
-    chatResolver = new TmuxSessionResolver(sessionMap, stateManager);
-    sessionMap.startPeriodicScan(tmuxBridge, 5_000, (result) => {
-      for (const s of result.discovered)
-        logger.info(t("tmux.sessionDiscovered", { target: s.tmuxTarget, project: s.project }));
-      for (const s of result.removed) {
-        logger.info(t("tmux.sessionLost", { target: s.tmuxTarget, project: s.project }));
+    paneRegistry.load();
+    const bootResult = paneRegistry.refreshFromTmux(tmuxBridge);
+    chatResolver = new TmuxPaneResolver(paneRegistry, paneStateManager);
+    paneRegistry.startPeriodicScan(tmuxBridge, 5_000, (result) => {
+      for (const p of result.discovered)
+        logger.info(t("tmux.sessionDiscovered", { target: p.paneId, project: p.project }));
+      for (const p of result.removed) {
+        logger.info(t("tmux.sessionLost", { target: p.paneId, project: p.project }));
       }
       if (result.discovered.length > 0 || result.removed.length > 0)
         logger.info(
@@ -119,8 +119,8 @@ async function startBot(): Promise<void> {
           })
         );
     });
-    for (const s of bootResult.discovered)
-      logger.info(t("tmux.sessionDiscovered", { target: s.tmuxTarget, project: s.project }));
+    for (const p of bootResult.discovered)
+      logger.info(t("tmux.sessionDiscovered", { target: p.paneId, project: p.project }));
     logger.info(t("tmux.scanComplete", { count: bootResult.total }));
     logger.info(t("bot.twowayEnabled"));
   } else {
@@ -142,7 +142,7 @@ async function startBot(): Promise<void> {
 
   let channel: NotificationChannel;
 
-  const deps: ChannelDeps = { sessionMap, stateManager, tmuxBridge, registry };
+  const deps: ChannelDeps = { paneRegistry, paneStateManager, tmuxBridge, registry };
 
   switch (cfg.channel) {
     case ChannelName.Discord:
@@ -163,17 +163,17 @@ async function startBot(): Promise<void> {
       string,
       unknown
     >;
-    if (typeof obj.session_id !== "string" || typeof obj.tmux_target !== "string") return;
-    if (!/^[a-zA-Z0-9_.:/@ -]+$/.test(obj.tmux_target)) return;
+    if (typeof obj.session_id !== "string" || typeof obj.pane_id !== "string") return;
+    if (!/^%\d+$/.test(obj.pane_id)) return;
     const cwd = typeof obj.cwd === "string" ? obj.cwd : "";
     const project = basename(cwd) || "unknown";
-    sessionMap.register(obj.session_id, obj.tmux_target, project, cwd);
-    sessionMap.save();
+    paneRegistry.register(obj.pane_id, project, cwd);
+    paneRegistry.save();
     logger.info(
       t("tmux.hookReceived", {
         event: "SessionStart",
         sessionId: obj.session_id,
-        target: obj.tmux_target,
+        target: obj.pane_id,
         project,
       })
     );
@@ -204,8 +204,8 @@ async function startBot(): Promise<void> {
     if (shutdownStarted) return;
     shutdownStarted = true;
     logger.info(t("bot.shuttingDown"));
-    sessionMap.stopPeriodicScan();
-    sessionMap.save();
+    paneRegistry.stopPeriodicScan();
+    paneRegistry.save();
     await tunnelManager.stop();
     await channel.shutdown();
     await apiServer.stop();

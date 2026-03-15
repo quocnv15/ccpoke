@@ -3,7 +3,7 @@ import type TelegramBot from "node-telegram-bot-api";
 import type { PermissionRequestEvent } from "../../agent/agent-handler.js";
 import { AGENT_DISPLAY_NAMES, AgentName } from "../../agent/types.js";
 import { t } from "../../i18n/index.js";
-import type { SessionMap } from "../../tmux/session-map.js";
+import type { PaneRegistry } from "../../tmux/pane-registry.js";
 import type { TmuxBridge } from "../../tmux/tmux-bridge.js";
 import { logger } from "../../utils/log.js";
 import {
@@ -11,6 +11,7 @@ import {
   parsePermissionCallback,
   PermissionTuiInjector,
 } from "../permission-tui-injector.js";
+import { buildSessionLabel } from "../session-label.js";
 import { summarizeTool } from "../summarize-tool.js";
 import { escapeMarkdownV2 } from "./escape-markdown.js";
 import { padMaxWidth } from "./telegram-sender.js";
@@ -18,7 +19,7 @@ import { padMaxWidth } from "./telegram-sender.js";
 interface PendingPermission {
   pendingId: number;
   sessionId: string;
-  tmuxTarget: string;
+  paneId: string;
   toolName: string;
   toolSummary: string;
   planLabels?: string[];
@@ -39,7 +40,7 @@ export class PermissionRequestHandler {
   constructor(
     private bot: TelegramBot,
     private chatId: () => number | null,
-    private sessionMap: SessionMap,
+    private paneRegistry: PaneRegistry,
     tmuxBridge: TmuxBridge
   ) {
     this.injector = new PermissionTuiInjector(tmuxBridge);
@@ -47,10 +48,10 @@ export class PermissionRequestHandler {
 
   async forwardPermission(event: PermissionRequestEvent): Promise<void> {
     const chat = this.chatId();
-    if (!chat || !event.tmuxTarget) return;
+    if (!chat || !event.paneId) return;
 
     logger.info(
-      `[PermReq] sessionId=${event.sessionId} tmuxTarget=${event.tmuxTarget} tool=${event.toolName}`
+      `[PermReq] sessionId=${event.sessionId} paneId=${event.paneId} tool=${event.toolName}`
     );
 
     if (this.pending.size >= MAX_PENDING) {
@@ -60,18 +61,18 @@ export class PermissionRequestHandler {
 
     const pendingId = this.nextPendingId++;
     const toolSummary = summarizeTool(event.toolName, event.toolInput);
-    const session = this.sessionMap.getBySessionId(event.sessionId);
-    const projectName = session?.project ?? "unknown";
-    const agentName = AGENT_DISPLAY_NAMES[session?.agent ?? AgentName.ClaudeCode];
+    const pane = this.paneRegistry.getByPaneId(event.paneId);
+    const projectName = pane?.project ?? "unknown";
+    const agentName = AGENT_DISPLAY_NAMES[pane?.agent ?? AgentName.ClaudeCode];
 
     const planLabels = isExitPlanMode(event.toolName)
-      ? this.injector.extractPlanOptions(event.tmuxTarget)
+      ? this.injector.extractPlanOptions(event.paneId)
       : undefined;
 
     const pp: PendingPermission = {
       pendingId,
       sessionId: event.sessionId,
-      tmuxTarget: event.tmuxTarget,
+      paneId: event.paneId,
       toolName: event.toolName,
       toolSummary,
       planLabels,
@@ -81,7 +82,14 @@ export class PermissionRequestHandler {
     this.setPending(pendingId, pp);
 
     const text = padMaxWidth(
-      this.formatMessage(projectName, agentName, event.toolName, toolSummary)
+      this.formatMessage(
+        projectName,
+        agentName,
+        event.toolName,
+        toolSummary,
+        event.paneId,
+        pane?.model ?? ""
+      )
     );
     const keyboard = planLabels
       ? this.buildPlanKeyboard(pendingId, planLabels)
@@ -149,8 +157,8 @@ export class PermissionRequestHandler {
       .catch(() => {});
 
     try {
-      await this.injector.inject(pp.tmuxTarget, injectionResult);
-      logger.debug(`[PermReq] injected ${injectionResult.action} → ${pp.tmuxTarget}`);
+      await this.injector.inject(pp.paneId, injectionResult);
+      logger.debug(`[PermReq] injected ${injectionResult.action} → ${pp.paneId}`);
     } catch (err) {
       logger.error({ err }, t("permissionRequest.injectionFailed"));
     }
@@ -189,15 +197,24 @@ export class PermissionRequestHandler {
     };
   }
 
-  private formatMessage(project: string, agent: string, toolName: string, summary: string): string {
+  private formatMessage(
+    project: string,
+    agent: string,
+    toolName: string,
+    summary: string,
+    paneId: string,
+    model: string
+  ): string {
+    const label = buildSessionLabel(project, model, paneId);
+
     if (isExitPlanMode(toolName)) {
-      const titleLine = `📦 *${escapeMarkdownV2(project)}*`;
+      const titleLine = `*${escapeMarkdownV2(label)}*`;
       const metaLine = `🐾 ${escapeMarkdownV2(agent)}`;
       const planLine = `\n${escapeMarkdownV2(t("permissionRequest.planTitle"))}`;
       return `${titleLine}\n${metaLine}\n${planLine}`;
     }
 
-    const header = `⚠️ *${escapeMarkdownV2(t("permissionRequest.title"))}*\n_${escapeMarkdownV2(project)}_`;
+    const header = `⚠️ *${escapeMarkdownV2(t("permissionRequest.title"))}*\n_${escapeMarkdownV2(label)}_`;
     const tool = `🔧 *${escapeMarkdownV2(toolName)}*\n\`${escapeMarkdownV2(summary)}\``;
     return `${header}\n\n${tool}`;
   }

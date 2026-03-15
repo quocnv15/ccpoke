@@ -11,7 +11,7 @@ import {
 import type { PermissionRequestEvent } from "../../agent/agent-handler.js";
 import { AGENT_DISPLAY_NAMES, AgentName } from "../../agent/types.js";
 import { t } from "../../i18n/index.js";
-import type { SessionMap } from "../../tmux/session-map.js";
+import type { PaneRegistry } from "../../tmux/pane-registry.js";
 import type { TmuxBridge } from "../../tmux/tmux-bridge.js";
 import { logger } from "../../utils/log.js";
 import {
@@ -19,12 +19,12 @@ import {
   parsePermissionCallback,
   PermissionTuiInjector,
 } from "../permission-tui-injector.js";
+import { buildSessionLabel } from "../session-label.js";
 import { summarizeTool } from "../summarize-tool.js";
 
 interface PendingPermission {
   pendingId: number;
-  sessionId: string;
-  tmuxTarget: string;
+  paneId: string;
   toolName: string;
   toolSummary: string;
   planLabels?: string[];
@@ -45,7 +45,7 @@ export class DiscordPermissionHandler {
 
   constructor(
     private getChannel: () => DMChannel | TextChannel | null,
-    private sessionMap: SessionMap,
+    private paneRegistry: PaneRegistry,
     tmuxBridge: TmuxBridge
   ) {
     this.injector = new PermissionTuiInjector(tmuxBridge);
@@ -53,11 +53,9 @@ export class DiscordPermissionHandler {
 
   async forwardPermission(event: PermissionRequestEvent): Promise<void> {
     const channel = this.getChannel();
-    if (!channel || !event.tmuxTarget) return;
+    if (!channel || !event.paneId) return;
 
-    logger.info(
-      `[Discord:PermReq] sessionId=${event.sessionId} tmuxTarget=${event.tmuxTarget} tool=${event.toolName}`
-    );
+    logger.info(`[Discord:PermReq] paneId=${event.paneId} tool=${event.toolName}`);
 
     if (this.pending.size >= MAX_PENDING) {
       const oldest = [...this.pending.entries()].sort((a, b) => a[1].createdAt - b[1].createdAt)[0];
@@ -66,18 +64,17 @@ export class DiscordPermissionHandler {
 
     const pendingId = this.nextPendingId++;
     const toolSummary = summarizeTool(event.toolName, event.toolInput);
-    const session = this.sessionMap.getBySessionId(event.sessionId);
-    const projectName = session?.project ?? "unknown";
-    const agentName = AGENT_DISPLAY_NAMES[session?.agent ?? AgentName.ClaudeCode];
+    const pane = this.paneRegistry.getByPaneId(event.paneId);
+    const projectName = pane?.project ?? "unknown";
+    const agentName = AGENT_DISPLAY_NAMES[(pane?.agent as AgentName) ?? AgentName.ClaudeCode];
 
     const planLabels = isExitPlanMode(event.toolName)
-      ? this.injector.extractPlanOptions(event.tmuxTarget)
+      ? this.injector.extractPlanOptions(event.paneId)
       : undefined;
 
     const pp: PendingPermission = {
       pendingId,
-      sessionId: event.sessionId,
-      tmuxTarget: event.tmuxTarget,
+      paneId: event.paneId,
       toolName: event.toolName,
       toolSummary,
       planLabels,
@@ -86,18 +83,20 @@ export class DiscordPermissionHandler {
 
     this.setPending(pendingId, pp);
 
+    const label = buildSessionLabel(projectName, pane?.model ?? "", event.paneId);
+
     let embed: EmbedBuilder;
     if (isExitPlanMode(event.toolName)) {
       embed = new EmbedBuilder()
         .setColor(EMBED_COLOR_WARN)
-        .setTitle(`📦 ${projectName}`)
+        .setTitle(label)
         .setDescription(`🐾 ${agentName}\n\n${t("permissionRequest.planTitle")}`)
         .setTimestamp();
     } else {
       embed = new EmbedBuilder()
         .setColor(EMBED_COLOR_WARN)
         .setTitle("⚠️ Permission Request")
-        .setDescription(`**${projectName}**`)
+        .setDescription(`**${label}**`)
         .addFields(
           { name: "🔧 Tool", value: event.toolName, inline: true },
           { name: "Input", value: `\`${toolSummary}\`` }
@@ -154,8 +153,8 @@ export class DiscordPermissionHandler {
     await interaction.deferUpdate();
 
     try {
-      await this.injector.inject(pp.tmuxTarget, injectionResult);
-      logger.debug(`[Discord:PermReq] injected ${injectionResult.action} → ${pp.tmuxTarget}`);
+      await this.injector.inject(pp.paneId, injectionResult);
+      logger.debug(`[Discord:PermReq] injected ${injectionResult.action} → ${pp.paneId}`);
     } catch (err) {
       logger.error({ err }, "[Discord:PermReq] injection failed");
     }

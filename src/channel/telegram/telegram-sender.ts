@@ -2,6 +2,7 @@ import TelegramBot from "node-telegram-bot-api";
 
 import { t } from "../../i18n/index.js";
 import { logger } from "../../utils/log.js";
+import { buildTargetCallback } from "./callback-parser.js";
 
 const TELEGRAM_MAX_MESSAGE_LENGTH = 4096;
 const PAGINATION_FOOTER_RESERVE = 30;
@@ -20,7 +21,8 @@ export async function sendTelegramMessage(
   chatId: number,
   text: string,
   responseUrl?: string,
-  sessionId?: string
+  paneId?: string,
+  panePid?: string
 ): Promise<void> {
   const pages = splitMessage(
     text,
@@ -38,12 +40,22 @@ export async function sendTelegramMessage(
     const opts: TelegramBot.SendMessageOptions = { parse_mode: "MarkdownV2" };
 
     if (isLastPage) {
-      const markup = buildResponseReplyMarkup(responseUrl, sessionId);
+      const markup = buildResponseReplyMarkup(responseUrl, paneId, panePid);
       if (markup) opts.reply_markup = markup;
     }
 
     const rawContent = pages[i]! + MAX_WIDTH_PAD;
-    await sendWithRetry(bot, chatId, content, rawContent, opts, isLastPage, responseUrl, sessionId);
+    await sendWithRetry(
+      bot,
+      chatId,
+      content,
+      rawContent,
+      opts,
+      isLastPage,
+      responseUrl,
+      paneId,
+      panePid
+    );
   }
 }
 
@@ -55,18 +67,17 @@ async function sendWithRetry(
   opts: TelegramBot.SendMessageOptions,
   isLastPage: boolean,
   responseUrl?: string,
-  sessionId?: string
+  paneId?: string,
+  panePid?: string
 ): Promise<void> {
   for (let attempt = 0; attempt < MAX_RETRIES; attempt++) {
     try {
-      // First attempt: MarkdownV2 with full formatting
-      // Subsequent attempts: plain text fallbacks
       if (attempt === 0) {
         await bot.sendMessage(chatId, content, opts);
       } else if (attempt === 1) {
         const fallbackOpts: TelegramBot.SendMessageOptions = {};
         if (isLastPage) {
-          const markup = buildResponseReplyMarkup(responseUrl, sessionId);
+          const markup = buildResponseReplyMarkup(responseUrl, paneId, panePid);
           if (markup) fallbackOpts.reply_markup = markup;
         }
         await bot.sendMessage(chatId, rawContent, fallbackOpts);
@@ -74,12 +85,15 @@ async function sendWithRetry(
         await bot.sendMessage(chatId, rawContent);
       }
       return;
-    } catch (error: any) {
+    } catch (error: unknown) {
       const isLastAttempt = attempt === MAX_RETRIES - 1;
+      const tgError = error as {
+        response?: { statusCode?: number; parameters?: { retry_after?: number } };
+      };
 
-      if (error?.response?.statusCode === 429) {
+      if (tgError.response?.statusCode === 429) {
         const retryAfter =
-          error?.response?.parameters?.retry_after ?? RETRY_DELAYS_MS[attempt]! / 1000;
+          tgError.response?.parameters?.retry_after ?? RETRY_DELAYS_MS[attempt]! / 1000;
         await new Promise((r) => setTimeout(r, retryAfter * 1000));
       } else if (!isLastAttempt) {
         logger.error(
@@ -134,7 +148,8 @@ function findSplitPoint(text: string, maxLen: number): number {
 
 function buildResponseReplyMarkup(
   responseUrl?: string,
-  sessionId?: string
+  paneId?: string,
+  panePid?: string
 ): TelegramBot.InlineKeyboardMarkup | undefined {
   const buttons: TelegramBot.InlineKeyboardButton[] = [];
 
@@ -146,8 +161,11 @@ function buildResponseReplyMarkup(
     buttons.push(viewButton);
   }
 
-  if (sessionId) {
-    buttons.push({ text: "💬 Chat", callback_data: `chat:${sessionId}` });
+  if (paneId && panePid) {
+    buttons.push({
+      text: "💬 Chat",
+      callback_data: buildTargetCallback("chat", paneId, panePid),
+    });
   }
 
   if (buttons.length === 0) return undefined;

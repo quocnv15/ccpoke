@@ -10,6 +10,7 @@ import type {
 import type { Config } from "../../config-manager.js";
 import { t } from "../../i18n/index.js";
 import { logger } from "../../utils/log.js";
+import { buildSessionLabel } from "../session-label.js";
 import type { ChannelDeps, NotificationChannel, NotificationData } from "../types.js";
 import { buildNotificationBlocks } from "./slack-block-builder.js";
 import { SlackSender } from "./slack-sender.js";
@@ -53,7 +54,8 @@ export class SlackChannel implements NotificationChannel {
     }
 
     const blocks = buildNotificationBlocks(data, responseUrl);
-    const text = `${data.projectName} — ${data.agentDisplayName}`;
+    const label = buildSessionLabel(data.projectName, data.model, data.paneId ?? "");
+    const text = `${label} — ${data.agentDisplayName}`;
     await this.sender.sendMessage(text, blocks);
   }
 

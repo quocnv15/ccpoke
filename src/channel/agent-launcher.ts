@@ -2,6 +2,7 @@ import { execSync } from "node:child_process";
 
 import { AgentName } from "../agent/types.js";
 import { getTmuxBinary, type TmuxBridge } from "../tmux/tmux-bridge.js";
+import { queryPanePid } from "../tmux/tmux-scanner.js";
 import { isWindows } from "../utils/constants.js";
 import { logger } from "../utils/log.js";
 import { escapeShellArg, isCommandAvailable } from "../utils/shell.js";
@@ -30,22 +31,23 @@ export function launchAgent(
   tmuxBridge: TmuxBridge,
   projectPath: string,
   agentKey: string
-): { paneTarget: string; needsTrust: boolean } {
+): { paneId: string; panePid: string; needsTrust: boolean } {
   validateCliAvailable(agentKey);
   const startCommand = AGENT_START_COMMANDS[agentKey]!;
   const tmuxSession = getTmuxSessionName();
-  const paneTarget = tmuxBridge.createPane(tmuxSession, projectPath);
-  tmuxBridge.sendKeys(paneTarget, startCommand, ["Enter"]);
+  const paneId = tmuxBridge.createPane(tmuxSession, projectPath);
+  const panePid = queryPanePid(paneId) ?? "";
+  tmuxBridge.sendKeys(paneId, startCommand, ["Enter"]);
   const needsTrust =
     agentKey === AgentName.ClaudeCode ||
     agentKey === AgentName.Cursor ||
     agentKey === AgentName.GeminiCli;
-  return { paneTarget, needsTrust };
+  return { paneId, panePid, needsTrust };
 }
 
 export function autoAcceptStartupPrompts(
   tmuxBridge: TmuxBridge,
-  paneTarget: string,
+  paneId: string,
   agentKey: string,
   onInterval: (interval: ReturnType<typeof setInterval>) => void,
   onClear: (interval: ReturnType<typeof setInterval>) => void
@@ -63,16 +65,16 @@ export function autoAcceptStartupPrompts(
       return;
     }
     try {
-      const content = tmuxBridge.capturePane(paneTarget, 20);
+      const content = tmuxBridge.capturePane(paneId, 20);
 
-      if (!bypassHandled && tryAcceptBypassPermissions(tmuxBridge, paneTarget, content, agentKey)) {
+      if (!bypassHandled && tryAcceptBypassPermissions(tmuxBridge, paneId, content, agentKey)) {
         bypassHandled = true;
         return;
       }
 
       if (!trustHandled && content.includes("Trust")) {
-        tmuxBridge.sendSpecialKey(paneTarget, "Enter");
-        logger.debug(`[AgentLauncher] auto-trusted workspace at ${paneTarget} for ${agentKey}`);
+        tmuxBridge.sendSpecialKey(paneId, "Enter");
+        logger.debug(`[AgentLauncher] auto-trusted workspace at ${paneId} for ${agentKey}`);
         trustHandled = true;
       }
     } catch {
@@ -86,7 +88,7 @@ export function autoAcceptStartupPrompts(
 
 function tryAcceptBypassPermissions(
   tmuxBridge: TmuxBridge,
-  paneTarget: string,
+  paneId: string,
   content: string,
   agentKey: string
 ): boolean {
@@ -101,13 +103,13 @@ function tryAcceptBypassPermissions(
   if (acceptLine === -1) return false;
 
   if (cursorLine === -1) {
-    tmuxBridge.sendSpecialKey(paneTarget, "Enter");
+    tmuxBridge.sendSpecialKey(paneId, "Enter");
   } else {
     const offset = acceptLine - cursorLine;
-    navigateToOption(tmuxBridge, paneTarget, offset);
+    navigateToOption(tmuxBridge, paneId, offset);
   }
 
-  logger.debug(`[AgentLauncher] auto-accepted bypass permissions at ${paneTarget} for ${agentKey}`);
+  logger.debug(`[AgentLauncher] auto-accepted bypass permissions at ${paneId} for ${agentKey}`);
   return true;
 }
 
@@ -119,13 +121,13 @@ function findCursorLine(lines: string[]): number {
   return lines.findIndex((line) => /^\s*[›>❯]/.test(line));
 }
 
-function navigateToOption(tmuxBridge: TmuxBridge, paneTarget: string, offset: number): void {
+function navigateToOption(tmuxBridge: TmuxBridge, paneId: string, offset: number): void {
   const key = offset > 0 ? "Down" : "Up";
   const steps = Math.abs(offset);
   for (let i = 0; i < steps; i++) {
-    tmuxBridge.sendSpecialKey(paneTarget, key);
+    tmuxBridge.sendSpecialKey(paneId, key);
   }
-  tmuxBridge.sendSpecialKey(paneTarget, "Enter");
+  tmuxBridge.sendSpecialKey(paneId, "Enter");
 }
 
 function getTmuxSessionName(): string {
